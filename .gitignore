@@ -1,0 +1,11 @@
+# Xcode
+*.xcodeproj/
+!*.xcodeproj/project.pbxproj
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+.DS_Store
+
+# XcodeGen genereert deze
+Gutterlight/Support/Info.plist
