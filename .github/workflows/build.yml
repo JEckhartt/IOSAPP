@@ -64,6 +64,19 @@ jobs:
           name: Gutterlight-ipa
           path: Gutterlight.ipa
 
+      - name: Publish versioned release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          cp Gutterlight.ipa "Gutterlight-${TAG}.ipa"
+          gh release create "$TAG" "Gutterlight-${TAG}.ipa" \
+            --target "$GITHUB_SHA" \
+            --title "Gutterlight ${TAG}" \
+            --notes "$(git log -1 --pretty=%B "$GITHUB_SHA" | sed '/^Co-Authored-By:/d;/^Claude-Session:/d')" \
+            --latest=false
+
       - name: Publish rolling "latest" release
         if: github.event_name != 'pull_request'
         env:
