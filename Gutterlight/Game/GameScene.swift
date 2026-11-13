@@ -222,6 +222,16 @@ final class GameScene: SKScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         switch state {
         case .title:
+            guard let touch = touches.first else { return }
+            if hud.isHelpVisible {
+                hud.hideHelp()
+                return
+            }
+            if hud.helpButtonContains(touch.location(in: cam)) {
+                hud.showHelp()
+                Audio.shared.play(.pickup, volume: 0.6)
+                return
+            }
             startGame()
             return
         case .dead:

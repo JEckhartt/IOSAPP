@@ -17,6 +17,11 @@ final class HUD: SKNode {
 
     private let titleCard = SKNode()
     private let titleBest = HUD.label("", size: 14, color: SKColor.white.withAlphaComponent(0.6))
+    private let helpButton = SKNode()
+    private let helpPanel = HelpPanel()
+    private static let helpButtonRadius: CGFloat = 20
+
+    var isHelpVisible: Bool { !helpPanel.isHidden }
 
     private let gameOverCard = SKNode()
     private let goScore = HUD.label("", size: 30, color: .white)
@@ -47,6 +52,10 @@ final class HUD: SKNode {
 
         buildTitleCard()
         buildGameOverCard()
+        buildHelpButton()
+
+        helpPanel.zPosition = 30
+        addChild(helpPanel)
     }
 
     required init?(coder aDecoder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -111,6 +120,25 @@ final class HUD: SKNode {
         addChild(titleCard)
     }
 
+    private func buildHelpButton() {
+        let ring = SKShapeNode(circleOfRadius: HUD.helpButtonRadius)
+        ring.strokeColor = Palette.cyan
+        ring.fillColor = Palette.cyan.withAlphaComponent(0.1)
+        ring.lineWidth = 2
+        ring.glowWidth = 3
+        ring.zPosition = 0
+        helpButton.addChild(ring)
+
+        let mark = HUD.label("?", size: 24, color: .white, font: Fonts.display)
+        mark.zPosition = 1
+        helpButton.addChild(mark)
+
+        helpButton.zPosition = 20
+        helpButton.isHidden = true
+        helpButton.run(FX.flicker())
+        addChild(helpButton)
+    }
+
     private func buildGameOverCard() {
         let title = HUD.neonText("FLATLINED", size: 64, color: Palette.blood)
         title.position = CGPoint(x: 0, y: 70)
@@ -144,6 +172,9 @@ final class HUD: SKNode {
         waveLabel.position = CGPoint(x: right, y: top)
         weaponLabel.position = CGPoint(x: right, y: top - 28)
         hpNode.position = CGPoint(x: 0, y: top)
+
+        helpButton.position = CGPoint(x: right - HUD.helpButtonRadius, y: top - 4)
+        helpPanel.build(for: size)
 
         let cardScale = min(1, size.width / 760, size.height / 380)
         titleCard.setScale(cardScale)
@@ -215,6 +246,8 @@ final class HUD: SKNode {
     func showTitle(best: Int) {
         titleBest.text = best > 0 ? "BEST  \(best.formatted())" : ""
         titleCard.isHidden = false
+        helpButton.isHidden = false
+        helpPanel.isHidden = true
         gameOverCard.isHidden = true
         gameplayNodes.forEach { $0.isHidden = true }
     }
@@ -231,12 +264,35 @@ final class HUD: SKNode {
         bannerNode.alpha = 0
     }
 
+    // MARK: Help
+
+    /// `point` is in HUD (camera) space. Generous hit area for thumbs.
+    func helpButtonContains(_ point: CGPoint) -> Bool {
+        !helpButton.isHidden && point.distance(to: helpButton.position) < HUD.helpButtonRadius + 22
+    }
+
+    func showHelp() {
+        helpPanel.isHidden = false
+        helpPanel.alpha = 0
+        helpPanel.run(.fadeIn(withDuration: 0.15))
+        helpButton.isHidden = true
+        titleCard.isHidden = true
+    }
+
+    func hideHelp() {
+        helpPanel.isHidden = true
+        helpButton.isHidden = false
+        titleCard.isHidden = false
+    }
+
     func enableGameOverPrompt() {
         goPrompt.isHidden = false
     }
 
     func showGameplay() {
         titleCard.isHidden = true
+        helpButton.isHidden = true
+        helpPanel.isHidden = true
         gameOverCard.isHidden = true
         gameplayNodes.forEach { $0.isHidden = false }
     }
