@@ -32,6 +32,8 @@ final class GameScene: SKScene {
     private var lastTime: TimeInterval = 0
     private var elapsed: TimeInterval = 0
     private var fireCooldown: TimeInterval = 0
+    private var weapon: Weapon = .spitter
+    private var ammo = 0
     private var hitStop: TimeInterval = 0
     private var shake: CGFloat = 0
     private var deadDelay: TimeInterval = 0
@@ -96,6 +98,10 @@ final class GameScene: SKScene {
 
         layoutForSize()
         hud.showTitle(best: best)
+
+        Audio.shared.start()
+        Audio.shared.playMusic()
+        Audio.shared.setMusicLevel(.title)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -164,6 +170,8 @@ final class GameScene: SKScene {
         hud.setCombo(1)
         hud.setWave(0)
         hud.setHP(player.hp, max: Player.maxHP)
+        equip(.spitter, announce: false)
+        Audio.shared.setMusicLevel(.playing)
         state = .playing
     }
 
@@ -188,6 +196,7 @@ final class GameScene: SKScene {
         spawnTimer = 0.4
         hud.setWave(wave)
         hud.banner("WAVE \(wave)", sub: Self.waveQuips[(wave - 1) % Self.waveQuips.count])
+        Audio.shared.play(.wave)
     }
 
     private func gameOver() {
@@ -200,6 +209,8 @@ final class GameScene: SKScene {
         player.isHidden = true
         shake = 22
         Haptics.death()
+        Audio.shared.play(.gameOver)
+        Audio.shared.setMusicLevel(.dead)
 
         let newBest = score > best
         if newBest { best = score }
@@ -323,19 +334,57 @@ final class GameScene: SKScene {
     private func updateShooting(_ dt: TimeInterval) {
         fireCooldown -= dt
         guard aimStick.magnitude > 0.25, fireCooldown <= 0 else { return }
-        fireCooldown = 0.1
+        fireCooldown = weapon.cooldown
 
-        let angle = aimStick.value.angle + CGFloat.random(in: -0.05...0.05)
-        let dir = CGVector(angle: angle)
-        let muzzle = player.position + dir * 20
-        let bullet = Bullet(friendly: true, velocity: dir * 920)
-        bullet.position = muzzle
-        world.addChild(bullet)
-        bullets.append(bullet)
+        let aim = aimStick.value.angle
+        let pellets = weapon.pellets
+        for i in 0..<pellets {
+            let angle: CGFloat
+            if pellets > 1 {
+                let step = weapon.spread / CGFloat(pellets - 1)
+                angle = aim - weapon.spread / 2 + step * CGFloat(i) + CGFloat.random(in: -0.04...0.04)
+            } else {
+                angle = aim + CGFloat.random(in: -weapon.spread...max(weapon.spread, 0.0001))
+            }
+            let dir = CGVector(angle: angle)
+            let speed = weapon.speed * (pellets > 1 ? CGFloat.random(in: 0.85...1.1) : 1)
+            let bullet = Bullet(weapon: weapon, velocity: dir * speed)
+            bullet.position = player.position + dir * 20
+            world.addChild(bullet)
+            bullet.trail?.targetNode = world
+            bullets.append(bullet)
+        }
 
-        FX.muzzleFlash(at: muzzle, in: world)
-        // A little recoil sells it.
-        player.velocity += dir * -18
+        let dir = CGVector(angle: aim)
+        FX.muzzleFlash(at: player.position + dir * 20, in: world)
+        player.velocity += dir * -weapon.recoil
+        shake = max(shake, weapon.shake)
+        Audio.shared.play(weapon.sfx, volume: weapon.sfxVolume)
+        if weapon.shake > 0 { Haptics.light() }
+
+        if weapon.ammo > 0 {
+            ammo -= 1
+            if ammo <= 0 {
+                FX.popup("DRY", at: player.position + CGVector(dx: 0, dy: 26), color: .white, in: world)
+                equip(.spitter, announce: false)
+            } else {
+                hud.setWeapon(weapon, ammo: ammo)
+            }
+        }
+    }
+
+    private func equip(_ newWeapon: Weapon, announce: Bool) {
+        weapon = newWeapon
+        ammo = newWeapon.ammo
+        fireCooldown = min(fireCooldown, 0.1)
+        hud.setWeapon(newWeapon, ammo: ammo)
+        hud.flashWeapon()
+        if announce {
+            FX.popup(newWeapon.name, at: player.position + CGVector(dx: 0, dy: 30), color: newWeapon.color, in: world)
+            FX.shockwave(at: player.position, color: newWeapon.color, radius: 30, in: world)
+            Audio.shared.play(.weapon)
+            Haptics.heavy()
+        }
     }
 
     private func updateWaves(_ dt: TimeInterval) {
@@ -358,6 +407,11 @@ final class GameScene: SKScene {
             }
         } else if enemies.isEmpty {
             nextWaveIn = 2.2
+            if wave % 3 == 0 {
+                let spot = arena.insetBy(dx: 90, dy: 90)
+                dropWeapon(at: CGPoint(x: CGFloat.random(in: spot.minX...spot.maxX),
+                                       y: CGFloat.random(in: spot.minY...spot.maxY)))
+            }
             score += wave * 250
             hud.setScore(score)
             FX.popup("WAVE CLEAR  +\(wave * 250)", at: player.position + CGVector(dx: 0, dy: 30), color: Palette.acid, in: world)
@@ -407,10 +461,11 @@ final class GameScene: SKScene {
                 e.fireTimer -= dt
                 if e.fireTimer <= 0 && dist < 520 && arena.contains(e.position) {
                     e.fireTimer = max(0.9, 2.0 - Double(wave) * 0.06)
-                    let shot = Bullet(friendly: false, velocity: dir * (230 + CGFloat(min(wave, 12)) * 8))
+                    let shot = Bullet(enemyVelocity: dir * (230 + CGFloat(min(wave, 12)) * 8))
                     shot.position = e.position + dir * (e.kind.radius + 4)
                     world.addChild(shot)
                     bullets.append(shot)
+                    Audio.shared.play(.enemyShot, volume: 0.6)
                 }
             }
 
@@ -447,6 +502,9 @@ final class GameScene: SKScene {
             b.life -= dt
             if b.life <= 0 || !killZone.contains(b.position) {
                 b.dead = true
+                if b.life <= 0 && b.blastRadius > 0 && state == .playing {
+                    explode(at: b.position, radius: b.blastRadius, damage: b.damage)
+                }
             }
         }
     }
@@ -473,9 +531,19 @@ final class GameScene: SKScene {
         for b in bullets where !b.dead {
             if b.friendly {
                 for e in enemies where !e.dead {
-                    if b.position.distance(to: e.position) < b.radius + e.kind.radius {
+                    let id = ObjectIdentifier(e)
+                    guard !b.hits.contains(id),
+                          b.position.distance(to: e.position) < b.radius + e.kind.radius else { continue }
+                    if b.blastRadius > 0 {
                         b.dead = true
-                        hit(e, direction: b.velocity.normalized)
+                        explode(at: b.position, radius: b.blastRadius, damage: b.damage)
+                        break
+                    }
+                    hit(e, direction: b.velocity.normalized, damage: b.damage, knockScale: b.knockback)
+                    if b.pierces {
+                        b.hits.insert(id)
+                    } else {
+                        b.dead = true
                         break
                     }
                 }
@@ -495,23 +563,60 @@ final class GameScene: SKScene {
         }
 
         for p in pickups where !p.dead {
-            if p.position.distance(to: player.position) < Pickup.radius + Player.radius {
-                p.dead = true
+            guard p.position.distance(to: player.position) < Pickup.radius + Player.radius else { continue }
+            p.dead = true
+            switch p.kind {
+            case .health:
                 player.hp = min(Player.maxHP, player.hp + 1)
                 hud.setHP(player.hp, max: Player.maxHP)
                 FX.burst(at: p.position, color: Palette.acid, count: 18, in: world)
                 FX.popup("+1 HP", at: p.position, color: Palette.acid, in: world)
+                Audio.shared.play(.pickup)
                 Haptics.light()
+            case .weapon(let w):
+                FX.burst(at: p.position, color: w.color, count: 26, in: world)
+                equip(w, announce: true)
             }
         }
     }
 
-    private func hit(_ enemy: Enemy, direction: CGVector) {
-        enemy.hp -= 1
-        enemy.knock += direction * enemy.kind.knockback
+    private func hit(_ enemy: Enemy, direction: CGVector, damage: Int, knockScale: CGFloat = 1) {
+        guard !enemy.dead else { return }
+        enemy.hp -= damage
+        enemy.knock += direction * (enemy.kind.knockback * knockScale)
         enemy.flash()
         FX.burst(at: enemy.position, color: enemy.kind.color, count: 4, speed: 160, in: world)
-        if enemy.hp <= 0 { kill(enemy) }
+        if enemy.hp <= 0 {
+            kill(enemy)
+        } else {
+            Audio.shared.play(.hit, volume: 0.7)
+        }
+    }
+
+    private func explode(at point: CGPoint, radius: CGFloat, damage: Int) {
+        FX.burst(at: point, color: Palette.amber, count: 50, speed: 340, in: world)
+        FX.burst(at: point, color: Palette.blood, count: 20, speed: 200, in: world)
+        FX.shockwave(at: point, color: Palette.amber, radius: radius * 0.7, in: world)
+        shake = max(shake, 11)
+        Audio.shared.play(.explode)
+        Haptics.heavy()
+
+        for e in enemies where !e.dead {
+            let away = e.position - point
+            if away.length < radius + e.kind.radius {
+                hit(e, direction: away.normalized, damage: damage, knockScale: 2)
+            }
+        }
+    }
+
+    private func dropWeapon(at point: CGPoint) {
+        let options = Weapon.drops.filter { $0 != weapon }
+        guard let pick = options.randomElement() else { return }
+        let crate = Pickup(kind: .weapon(pick))
+        crate.position = point
+        world.addChild(crate)
+        pickups.append(crate)
+        FX.shockwave(at: point, color: pick.color, radius: 24, in: world)
     }
 
     private func kill(_ enemy: Enemy) {
@@ -533,17 +638,30 @@ final class GameScene: SKScene {
         if big {
             hitStop = 0.06
             Haptics.heavy()
+            Audio.shared.play(.bigExplode)
         } else {
             Haptics.light()
+            Audio.shared.play(.explode, volume: 0.55)
         }
 
-        let dropChance = big ? 0.6 : 0.03
-        if Double.random(in: 0..<1) < dropChance && arena.contains(enemy.position) {
-            let pickup = Pickup()
-            pickup.position = enemy.position
-            world.addChild(pickup)
-            pickups.append(pickup)
+        guard arena.contains(enemy.position) else { return }
+        let roll = Double.random(in: 0..<1)
+        switch enemy.kind {
+        case .brute:
+            dropWeapon(at: enemy.position + CGVector(dx: -18, dy: 0))
+            if roll < 0.5 { dropHealth(at: enemy.position + CGVector(dx: 18, dy: 0)) }
+        case .enforcer:
+            if roll < 0.1 { dropWeapon(at: enemy.position) } else if roll < 0.14 { dropHealth(at: enemy.position) }
+        case .suit, .hound:
+            if roll < 0.015 { dropWeapon(at: enemy.position) } else if roll < 0.045 { dropHealth(at: enemy.position) }
         }
+    }
+
+    private func dropHealth(at point: CGPoint) {
+        let pickup = Pickup(kind: .health)
+        pickup.position = point
+        world.addChild(pickup)
+        pickups.append(pickup)
     }
 
     private func damagePlayer() {
@@ -558,6 +676,7 @@ final class GameScene: SKScene {
         shake = max(shake, 14)
         hitStop = 0.08
         Haptics.heavy()
+        Audio.shared.play(.hurt)
         damageFlash?.removeAllActions()
         damageFlash?.alpha = 0.35
         damageFlash?.run(.fadeOut(withDuration: 0.3))

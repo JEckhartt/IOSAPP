@@ -104,6 +104,25 @@ enum FX {
         e.run(.sequence([.wait(forDuration: 1.0), .removeFromParent()]))
     }
 
+    static func rocketTrail() -> SKEmitterNode {
+        let e = SKEmitterNode()
+        e.particleTexture = spark
+        e.particleBirthRate = 90
+        e.particleLifetime = 0.35
+        e.particleLifetimeRange = 0.15
+        e.particleSpeed = 30
+        e.emissionAngle = .pi
+        e.emissionAngleRange = 0.6
+        e.particleAlpha = 0.7
+        e.particleAlphaSpeed = -2
+        e.particleScale = 0.45
+        e.particleScaleSpeed = 0.8
+        e.particleColor = Palette.amber
+        e.particleColorBlendFactor = 1
+        e.particleBlendMode = .add
+        return e
+    }
+
     static func shockwave(at point: CGPoint, color: SKColor, radius: CGFloat, in parent: SKNode) {
         let ring = SKShapeNode(circleOfRadius: radius)
         ring.strokeColor = color

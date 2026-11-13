@@ -8,7 +8,20 @@ de neon flikkert en de Suits willen hun straten terug.
 - **Linkerduim**: bewegen (de stick verschijnt waar je drukt)
 - **Rechterduim**: richten + automatisch vuren
 - Kills achter elkaar bouwen een combo op tot **x8**. Word je geraakt, dan is je combo weg.
-- Om de 5 waves komt er een Brute. Die laat vaak een stim pack (+1 HP) vallen.
+- Om de 5 waves komt er een Brute. Die laat altijd een wapen vallen en vaak ook een stim pack (+1 HP).
+- Om de 3 waves ligt er na een clear een wapenkrat klaar.
+
+### Wapens
+
+Wapens liggen als draaiende kratten op straat. Is de munitie op, dan val je terug op de SPITTER.
+
+| Krat | Wapen   | Wat het doet                                  | Munitie |
+|------|---------|-----------------------------------------------|---------|
+| —    | SPITTER | standaardpistool                              | ∞       |
+| S    | SCATTER | shotgun, 7 hagels, korte afstand, flinke duw  | 30      |
+| Z    | BUZZSAW | SMG, belachelijk snel, wilde spray            | 260     |
+| R    | RAILGUN | traag, 4 schade, gaat door alles heen         | 22      |
+| X    | BOOMBOX | raketwerper, splash-schade                    | 16      |
 
 | Vijand   | Vorm      | Gedrag                                   |
 |----------|-----------|------------------------------------------|
@@ -28,14 +41,17 @@ open Gutterlight.xcodeproj
 ```
 
 Kies je team onder *Signing & Capabilities* en run op een iPhone of iPad, in landscape.
-Alle graphics worden in code gegenereerd. Er zijn geen assets nodig.
+Alle graphics én audio worden in code gegenereerd: een synthwave-loop van 8 maten
+in A-mineur (100 BPM) en 13 geluidseffecten, gerenderd bij het opstarten. Er zijn geen assets nodig.
+De audiosessie staat op `.ambient`, dus de stilteknop wordt gerespecteerd.
 
 ## Structuur
 
 ```
 Gutterlight/
   App/         SwiftUI-entry + SKView-host
-  Game/        GameScene: loop, waves, collisions, score
+  Audio/       Synth (oscillators, SFX, muziek) + AVAudioEngine-player
+  Game/        GameScene: loop, waves, collisions, score · Weapon
   Entities/    Player, Enemy, Bullet, Pickup
   UI/          HUD, Joystick, CityBackdrop
   Support/     Palette, FX (procedurele textures/particles), Math
@@ -43,9 +59,8 @@ Gutterlight/
 
 ## Volgende stappen
 
-- Geluid (synthwave-loop + SFX)
 - Dash/dodge-roll
-- Meer wapens als pickups
+- Instellingen (muziek/SFX aan/uit)
 - Baas-wave
 - Game Center-leaderboard
 - App-icoon

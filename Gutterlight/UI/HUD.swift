@@ -1,12 +1,14 @@
 import SpriteKit
 import CoreImage
 import UIKit
+import QuartzCore
 
 /// Screen-space overlay: score, combo, wave, health, and the title / game-over cards.
 final class HUD: SKNode {
     private let scoreLabel = HUD.label("0", size: 26, color: .white)
     private let comboLabel = HUD.label("", size: 18, color: Palette.acid)
     private let waveLabel = HUD.label("", size: 18, color: Palette.cyan)
+    private let weaponLabel = HUD.label("", size: 16, color: Palette.magenta)
     private let hpNode = SKNode()
 
     private let bannerNode = SKNode()
@@ -21,7 +23,7 @@ final class HUD: SKNode {
     private let goDetail = HUD.label("", size: 15, color: Palette.cyan)
     private let goPrompt = HUD.label("TAP TO GO AGAIN", size: 17, color: .white)
 
-    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, hpNode] }
+    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, weaponLabel, hpNode] }
 
     override init() {
         super.init()
@@ -29,6 +31,7 @@ final class HUD: SKNode {
         scoreLabel.horizontalAlignmentMode = .left
         comboLabel.horizontalAlignmentMode = .left
         waveLabel.horizontalAlignmentMode = .right
+        weaponLabel.horizontalAlignmentMode = .right
         for node in gameplayNodes {
             node.zPosition = 1
             addChild(node)
@@ -139,6 +142,7 @@ final class HUD: SKNode {
         scoreLabel.position = CGPoint(x: left, y: top)
         comboLabel.position = CGPoint(x: left, y: top - 28)
         waveLabel.position = CGPoint(x: right, y: top)
+        weaponLabel.position = CGPoint(x: right, y: top - 28)
         hpNode.position = CGPoint(x: 0, y: top)
 
         let cardScale = min(1, size.width / 760, size.height / 380)
@@ -164,6 +168,19 @@ final class HUD: SKNode {
 
     func setWave(_ wave: Int) {
         waveLabel.text = wave > 0 ? "WAVE \(wave)" : ""
+    }
+
+    func setWeapon(_ weapon: Weapon, ammo: Int) {
+        weaponLabel.text = weapon.ammo > 0 ? "\(weapon.name)  \(ammo)" : weapon.name
+        weaponLabel.fontColor = weapon.color
+        let low = weapon.ammo > 0 && ammo <= max(3, weapon.ammo / 6)
+        weaponLabel.alpha = low && Int(CACurrentMediaTime() * 8) % 2 == 0 ? 0.35 : 1
+    }
+
+    func flashWeapon() {
+        weaponLabel.removeAction(forKey: "pop")
+        weaponLabel.setScale(1.5)
+        weaponLabel.run(.scale(to: 1, duration: 0.2), withKey: "pop")
     }
 
     func setHP(_ hp: Int, max maxHP: Int) {
