@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
@@ -35,9 +38,47 @@ jobs:
             | tee build.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
 
-      - name: Upload build log
+      - name: Build unsigned IPA (device, Release)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Gutterlight.xcodeproj \
+            -scheme Gutterlight \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tee device.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" device.log
+          mkdir -p Payload
+          cp -R build-device/Build/Products/Release-iphoneos/Gutterlight.app Payload/
+          zip -qry Gutterlight.ipa Payload
+          ls -lh Gutterlight.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gutterlight-ipa
+          path: Gutterlight.ipa
+
+      - name: Publish rolling "latest" release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest Gutterlight.ipa \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Gutterlight (latest build)" \
+            --notes "Unsigned build van ${GITHUB_SHA::7}. Sideload met AltStore, SideStore of Sideloadly."
+
+      - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: build.log
+          name: build-logs
+          path: "*.log"
