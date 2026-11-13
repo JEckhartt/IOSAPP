@@ -2,7 +2,9 @@ import SpriteKit
 
 /// Floating virtual stick: appears wherever the thumb lands.
 final class Joystick: SKNode {
-    let radius: CGFloat = 60
+    let radius: CGFloat = 52
+    /// Ignore tiny thumb wobble, then rescale so output still spans 0...1.
+    let deadZone: CGFloat = 0.12
     private(set) var value = CGVector.zero
     private(set) var isActive = false
 
@@ -49,10 +51,21 @@ final class Joystick: SKNode {
         var delta = point - origin
         let len = delta.length
         if len > radius {
+            // Drag the base along so reversing direction is instant, not a long thumb trip back.
+            let excess = delta.normalized * (len - radius)
+            origin += excess
+            position = origin
             delta = delta * (radius / len)
         }
         knob.position = CGPoint(x: delta.dx, y: delta.dy)
-        value = delta * (1 / radius)
+
+        let raw = min(1, delta.length / radius)
+        if raw < deadZone {
+            value = .zero
+        } else {
+            let scaled = (raw - deadZone) / (1 - deadZone)
+            value = delta.normalized * scaled
+        }
     }
 
     func end() {

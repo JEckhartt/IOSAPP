@@ -33,8 +33,8 @@ final class Bullet: SKNode {
             shape.strokeColor = Palette.magenta
             shape.glowWidth = 3
         case .scatter:
-            radius = 4
-            shape = SKShapeNode(rectOf: CGSize(width: 9, height: 3), cornerRadius: 1.5)
+            radius = 6
+            shape = SKShapeNode(rectOf: CGSize(width: 10, height: 3.5), cornerRadius: 1.75)
             shape.strokeColor = Palette.acid
             shape.glowWidth = 2
         case .buzzsaw:
@@ -43,8 +43,8 @@ final class Bullet: SKNode {
             shape.strokeColor = Palette.violet
             shape.glowWidth = 2
         case .rail:
-            radius = 7
-            shape = SKShapeNode(rectOf: CGSize(width: 40, height: 4), cornerRadius: 2)
+            radius = 11
+            shape = SKShapeNode(rectOf: CGSize(width: 46, height: 5), cornerRadius: 2.5)
             shape.strokeColor = Palette.cyan
             shape.glowWidth = 7
         case .boombox:

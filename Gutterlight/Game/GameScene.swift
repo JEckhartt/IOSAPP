@@ -316,27 +316,30 @@ final class GameScene: SKScene {
     private func updatePlayer(_ dt: TimeInterval) {
         player.tick(dt)
 
-        let target = moveStick.value * Player.moveSpeed
-        player.velocity = player.velocity.lerp(to: target, t: CGFloat(min(1, dt * 14)))
+        // Slight curve: fine control near center, full speed quickly.
+        let m = moveStick.magnitude
+        let target = moveStick.value.normalized * (Player.moveSpeed * min(1, m * 1.25))
+        let response: TimeInterval = m > 0 ? 24 : 18
+        player.velocity = player.velocity.lerp(to: target, t: CGFloat(min(1, dt * response)))
         player.position += player.velocity * CGFloat(dt)
 
         let bounds = arena.insetBy(dx: Player.radius + 6, dy: Player.radius + 6)
         player.position.x = player.position.x.clamped(bounds.minX, bounds.maxX)
         player.position.y = player.position.y.clamped(bounds.minY, bounds.maxY)
 
-        if aimStick.magnitude > 0.2 {
-            player.zRotation = aimStick.value.angle
-        } else if moveStick.magnitude > 0.2 {
+        if aimStick.magnitude > 0 {
+            player.zRotation = assistedAim(aimStick.value.angle)
+        } else if moveStick.magnitude > 0 {
             player.zRotation = moveStick.value.angle
         }
     }
 
     private func updateShooting(_ dt: TimeInterval) {
         fireCooldown -= dt
-        guard aimStick.magnitude > 0.25, fireCooldown <= 0 else { return }
+        guard aimStick.magnitude > 0, fireCooldown <= 0 else { return }
         fireCooldown = weapon.cooldown
 
-        let aim = aimStick.value.angle
+        let aim = assistedAim(aimStick.value.angle)
         let pellets = weapon.pellets
         for i in 0..<pellets {
             let angle: CGFloat
@@ -360,7 +363,7 @@ final class GameScene: SKScene {
         player.velocity += dir * -weapon.recoil
         shake = max(shake, weapon.shake)
         Audio.shared.play(weapon.sfx, volume: weapon.sfxVolume)
-        if weapon.shake > 0 { Haptics.light() }
+        if weapon.shake >= 4 { Haptics.light() }
 
         if weapon.ammo > 0 {
             ammo -= 1
@@ -373,9 +376,30 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Gentle aim magnetism: bends the shot toward the best target inside a narrow cone.
+    private func assistedAim(_ raw: CGFloat) -> CGFloat {
+        let cone: CGFloat = 0.22
+        var best: (diff: CGFloat, score: CGFloat)?
+        for e in enemies where !e.dead && arena.contains(e.position) {
+            let to = e.position - player.position
+            let dist = to.length
+            guard dist < 650, dist > 1 else { continue }
+            let diff = atan2(sin(to.angle - raw), cos(to.angle - raw))
+            guard abs(diff) < cone else { continue }
+            let score = abs(diff) * 300 + dist  // prefer on-line, then close
+            if best == nil || score < best!.score { best = (diff, score) }
+        }
+        guard let best else { return raw }
+        return raw + best.diff * 0.75
+    }
+
     private func equip(_ newWeapon: Weapon, announce: Bool) {
+        if newWeapon == weapon && newWeapon.ammo > 0 {
+            ammo = min(newWeapon.ammo * 2, ammo + newWeapon.ammo)
+        } else {
+            ammo = newWeapon.ammo
+        }
         weapon = newWeapon
-        ammo = newWeapon.ammo
         fireCooldown = min(fireCooldown, 0.1)
         hud.setWeapon(newWeapon, ammo: ammo)
         hud.flashWeapon()
@@ -604,7 +628,7 @@ final class GameScene: SKScene {
         for e in enemies where !e.dead {
             let away = e.position - point
             if away.length < radius + e.kind.radius {
-                hit(e, direction: away.normalized, damage: damage, knockScale: 2)
+                hit(e, direction: away.normalized, damage: damage, knockScale: 3.5)
             }
         }
     }

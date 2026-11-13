@@ -50,21 +50,21 @@ enum Weapon: CaseIterable {
     var cooldown: TimeInterval {
         switch self {
         case .spitter: return 0.1
-        case .scatter: return 0.42
-        case .buzzsaw: return 0.045
-        case .rail: return 0.55
-        case .boombox: return 0.6
+        case .scatter: return 0.34
+        case .buzzsaw: return 0.04
+        case .rail: return 0.42
+        case .boombox: return 0.45
         }
     }
 
-    var pellets: Int { self == .scatter ? 7 : 1 }
+    var pellets: Int { self == .scatter ? 10 : 1 }
 
     /// Scatter: total cone width. Others: random jitter per shot.
     var spread: CGFloat {
         switch self {
         case .spitter: return 0.05
-        case .scatter: return 0.5
-        case .buzzsaw: return 0.16
+        case .scatter: return 0.55
+        case .buzzsaw: return 0.1
         case .rail: return 0
         case .boombox: return 0.02
         }
@@ -73,61 +73,64 @@ enum Weapon: CaseIterable {
     var speed: CGFloat {
         switch self {
         case .spitter: return 920
-        case .scatter: return 780
-        case .buzzsaw: return 1000
-        case .rail: return 1800
-        case .boombox: return 520
+        case .scatter: return 820
+        case .buzzsaw: return 1050
+        case .rail: return 2000
+        case .boombox: return 680
         }
     }
 
     var damage: Int {
         switch self {
-        case .spitter, .scatter, .buzzsaw: return 1
-        case .rail: return 4
-        case .boombox: return 5
+        case .spitter: return 1
+        case .scatter, .buzzsaw: return 2
+        case .rail: return 10
+        case .boombox: return 10
         }
     }
 
     var pierces: Bool { self == .rail }
 
-    var blastRadius: CGFloat { self == .boombox ? 95 : 0 }
+    var blastRadius: CGFloat { self == .boombox ? 135 : 0 }
 
-    var life: TimeInterval { self == .scatter ? 0.42 : 1.4 }
+    var life: TimeInterval { self == .scatter ? 0.5 : 1.4 }
 
     /// Rounds per pickup. 0 = infinite.
     var ammo: Int {
         switch self {
         case .spitter: return 0
-        case .scatter: return 30
-        case .buzzsaw: return 260
-        case .rail: return 22
-        case .boombox: return 16
+        case .scatter: return 45
+        case .buzzsaw: return 400
+        case .rail: return 35
+        case .boombox: return 25
         }
     }
 
     var knockback: CGFloat {
         switch self {
-        case .scatter: return 2.2
-        case .rail: return 1.6
+        case .scatter: return 2.6
+        case .rail: return 2.2
         default: return 1
         }
     }
 
+    /// Kept small: recoil that fights your movement stick just feels like lag.
     var recoil: CGFloat {
         switch self {
-        case .spitter: return 18
-        case .scatter: return 140
-        case .buzzsaw: return 10
-        case .rail: return 160
-        case .boombox: return 90
+        case .spitter: return 6
+        case .scatter: return 45
+        case .buzzsaw: return 4
+        case .rail: return 50
+        case .boombox: return 30
         }
     }
 
     var shake: CGFloat {
         switch self {
-        case .scatter: return 5
-        case .rail: return 7
-        case .boombox: return 3
+        case .scatter: return 6
+        case .rail: return 8
+        case .boombox: return 4
+        case .buzzsaw: return 1.5
         default: return 0
         }
     }
