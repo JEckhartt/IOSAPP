@@ -31,9 +31,10 @@ final class HelpPanel: SKNode {
         title.zPosition = 1
         content.addChild(title)
 
-        buildControls(x: -260)
-        buildEnemies(x: -10)
-        buildWeapons(x: 240)
+        // Columns span roughly x-362 ... x+365 (the longest weapon line), so the block sits centered.
+        buildControls(x: -362)
+        buildEnemies(x: -112)
+        buildWeapons(x: 138)
         buildTips()
 
         let close = HUD.label("TAP ANYWHERE TO CLOSE", size: 13, color: SKColor.white.withAlphaComponent(0.55))
