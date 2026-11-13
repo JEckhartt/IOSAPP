@@ -72,7 +72,7 @@ final class Enemy: SKNode {
     }
 
     let kind: Kind
-    let speed: CGFloat
+    let moveSpeed: CGFloat
     var hp: Int
     var knock = CGVector.zero
     var fireTimer: TimeInterval
@@ -84,7 +84,7 @@ final class Enemy: SKNode {
     init(kind: Kind, wave: Int) {
         self.kind = kind
         self.hp = kind.maxHP + (kind == .brute ? wave / 2 : 0)
-        self.speed = kind.speed * (1 + CGFloat(min(wave, 15)) * 0.03)
+        self.moveSpeed = kind.speed * (1 + CGFloat(min(wave, 15)) * 0.03)
         self.fireTimer = TimeInterval.random(in: 1.0...2.5)
 
         let rotation: CGFloat = kind == .suit ? .pi / 4 : 0

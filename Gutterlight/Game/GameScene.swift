@@ -445,18 +445,18 @@ final class GameScene: SKScene {
 
             switch e.kind {
             case .suit, .brute:
-                desired = dir * e.speed
+                desired = dir * e.moveSpeed
             case .hound:
                 let wobble = CGFloat(sin(elapsed * 7 + Double(e.phase)))
-                desired = (dir + dir.perpendicular * (wobble * 0.9)).normalized * e.speed
+                desired = (dir + dir.perpendicular * (wobble * 0.9)).normalized * e.moveSpeed
             case .enforcer:
                 if dist > 280 {
-                    desired = dir * e.speed
+                    desired = dir * e.moveSpeed
                 } else if dist < 170 {
-                    desired = dir * -e.speed
+                    desired = dir * -e.moveSpeed
                 } else {
                     let side: CGFloat = sin(e.phase) > 0 ? 1 : -1
-                    desired = dir.perpendicular * (e.speed * 0.6 * side)
+                    desired = dir.perpendicular * (e.moveSpeed * 0.6 * side)
                 }
                 e.fireTimer -= dt
                 if e.fireTimer <= 0 && dist < 520 && arena.contains(e.position) {
