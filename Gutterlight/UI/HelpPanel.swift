@@ -38,7 +38,7 @@ final class HelpPanel: SKNode {
         buildTips()
 
         let close = HUD.label("TAP ANYWHERE TO CLOSE", size: 13, color: SKColor.white.withAlphaComponent(0.55))
-        close.position = CGPoint(x: 0, y: -182)
+        close.position = CGPoint(x: 0, y: -190)
         close.zPosition = 1
         close.run(.repeatForever(.sequence([.fadeAlpha(to: 0.2, duration: 0.7), .fadeAlpha(to: 0.55, duration: 0.7)])))
         content.addChild(close)
@@ -133,10 +133,12 @@ final class HelpPanel: SKNode {
         let lines = [
             "CHAIN KILLS FOR UP TO x8 COMBO. GETTING HIT RESETS IT.",
             "+ HEALS 1 HP  ·  SAME WEAPON AGAIN STACKS AMMO  ·  EVERY 3RD WAVE LEAVES A CRATE",
+            "EVERY 10TH WAVE A NEW BOSS SHOWS UP. TEN OF THEM. GOOD LUCK.",
         ]
         for (i, text) in lines.enumerated() {
-            let l = HUD.label(text, size: 12, color: i == 0 ? Palette.acid : SKColor.white.withAlphaComponent(0.75))
-            l.position = CGPoint(x: 0, y: -122 - CGFloat(i) * 20)
+            let color: SKColor = i == 0 ? Palette.acid : (i == 2 ? Palette.blood : SKColor.white.withAlphaComponent(0.75))
+            let l = HUD.label(text, size: 12, color: color)
+            l.position = CGPoint(x: 0, y: -118 - CGFloat(i) * 18)
             l.zPosition = 1
             content.addChild(l)
         }

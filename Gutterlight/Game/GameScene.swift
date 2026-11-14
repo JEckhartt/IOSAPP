@@ -28,6 +28,7 @@ final class GameScene: SKScene {
     private var enemies: [Enemy] = []
     private var bullets: [Bullet] = []
     private var pickups: [Pickup] = []
+    private var boss: Boss?
 
     private var lastTime: TimeInterval = 0
     private var elapsed: TimeInterval = 0
@@ -152,6 +153,9 @@ final class GameScene: SKScene {
         enemies.removeAll()
         bullets.removeAll()
         pickups.removeAll()
+        boss?.removeFromParent()
+        boss = nil
+        hud.hideBossBar()
 
         player.reset()
         player.isHidden = false
@@ -177,6 +181,10 @@ final class GameScene: SKScene {
 
     private func startWave() {
         wave += 1
+        if let encounter = BossSpec.forWave(wave) {
+            startBossWave(encounter.spec, lap: encounter.lap)
+            return
+        }
         let count = 5 + wave * 3
         var queue: [Enemy.Kind] = []
         for _ in 0..<count {
@@ -199,8 +207,26 @@ final class GameScene: SKScene {
         Audio.shared.play(.wave)
     }
 
+    private func startBossWave(_ spec: BossSpec, lap: Int) {
+        spawnQueue = []
+        let b = Boss(spec: spec, lap: lap)
+        b.position = CGPoint(x: 0, y: arena.maxY + spec.radius + 40)
+        world.addChild(b)
+        boss = b
+
+        hud.setWave(wave)
+        hud.banner(spec.name, sub: "\"" + spec.quip + "\"")
+        hud.showBossBar(name: lap > 0 ? "\(spec.name)  \(String(repeating: "+", count: lap))" : spec.name, color: spec.color)
+        hud.setBossHP(1)
+        Audio.shared.play(.wave)
+        Audio.shared.play(.bigExplode, volume: 0.5)
+        shake = max(shake, 10)
+        Haptics.heavy()
+    }
+
     private func gameOver() {
         state = .dead
+        hud.hideBossBar()
         deadDelay = 1.2
         releaseAllSticks()
 
@@ -306,6 +332,7 @@ final class GameScene: SKScene {
         updateShooting(dt)
         updateWaves(dt)
         updateEnemies(dt)
+        updateBoss(dt)
         updateBullets(dt)
         updatePickups(dt)
         resolveCollisions()
@@ -439,7 +466,7 @@ final class GameScene: SKScene {
                 spawnEnemy(spawnQueue.removeLast())
                 spawnTimer = max(0.22, 0.95 - Double(wave) * 0.06)
             }
-        } else if enemies.isEmpty {
+        } else if enemies.isEmpty && boss == nil {
             nextWaveIn = 2.2
             if wave % 3 == 0 {
                 let spot = arena.insetBy(dx: 90, dy: 90)
@@ -581,6 +608,18 @@ final class GameScene: SKScene {
                         break
                     }
                 }
+                if !b.dead, let boss, !boss.dead, !boss.entering {
+                    let id = ObjectIdentifier(boss)
+                    if !b.hits.contains(id) && b.position.distance(to: boss.position) < b.radius + boss.radius {
+                        if b.blastRadius > 0 {
+                            b.dead = true
+                            explode(at: b.position, radius: b.blastRadius, damage: b.damage)
+                        } else {
+                            hitBoss(damage: b.damage, at: b.position)
+                            if b.pierces { b.hits.insert(id) } else { b.dead = true }
+                        }
+                    }
+                }
             } else if b.position.distance(to: player.position) < b.radius + Player.radius * 0.6 {
                 b.dead = true
                 damagePlayer()
@@ -594,6 +633,11 @@ final class GameScene: SKScene {
                 damagePlayer()
                 e.knock = (e.position - player.position).normalized * 420
             }
+        }
+
+        if let boss, !boss.dead, boss.position.distance(to: player.position) < boss.radius * 0.85 + Player.radius {
+            damagePlayer()
+            player.velocity = (player.position - boss.position).normalized * 520
         }
 
         for p in pickups where !p.dead {
@@ -641,6 +685,134 @@ final class GameScene: SKScene {
                 hit(e, direction: away.normalized, damage: damage, knockScale: 3.5)
             }
         }
+        if let boss, !boss.dead, !boss.entering, boss.position.distance(to: point) < radius + boss.radius {
+            hitBoss(damage: damage, at: point)
+        }
+    }
+
+    // MARK: Boss
+
+    private func updateBoss(_ dt: TimeInterval) {
+        guard let boss, !boss.dead else { return }
+        let out = boss.update(dt, player: player.position, arena: arena)
+
+        let bulletColor = boss.spec.color == .white ? Palette.blood : boss.spec.color
+        for shot in out.shots {
+            let b = Bullet(enemyVelocity: shot.velocity, color: bulletColor, big: boss.phase == 2)
+            b.position = shot.position
+            world.addChild(b)
+            bullets.append(b)
+        }
+        if !out.shots.isEmpty { Audio.shared.play(.enemyShot, volume: 0.7) }
+
+        for (i, kind) in out.summons.enumerated() {
+            let enemy = Enemy(kind: kind, wave: wave)
+            let a = CGFloat(i) / CGFloat(max(1, out.summons.count)) * .pi * 2
+            enemy.position = boss.position + CGVector(angle: a, length: boss.radius + 30)
+            world.addChild(enemy)
+            enemies.append(enemy)
+            FX.shockwave(at: enemy.position, color: kind.color, radius: 20, in: world)
+        }
+
+        if let phase = out.newPhase {
+            FX.shockwave(at: boss.position, color: boss.spec.color, radius: boss.radius * 2, in: world)
+            FX.popup(phase == 2 ? "ENRAGED" : "PHASE \(phase + 1)", at: boss.position + CGVector(dx: 0, dy: boss.radius + 20),
+                     color: Palette.blood, in: world)
+            Audio.shared.play(.wave, volume: 0.8)
+            shake = max(shake, 12)
+            Haptics.heavy()
+        }
+        if out.charged {
+            Audio.shared.play(.rail)
+            shake = max(shake, 6)
+        }
+        if out.blinked {
+            FX.burst(at: boss.position, color: boss.spec.accent, count: 30, speed: 300, in: world)
+            Audio.shared.play(.rocket)
+        }
+        if out.arrived {
+            FX.shockwave(at: boss.position, color: boss.spec.color, radius: boss.radius * 1.8, in: world)
+        }
+
+        // Grunts don't get to stand inside their boss.
+        for e in enemies where !e.dead {
+            let delta = e.position - boss.position
+            let minDist = boss.radius + e.kind.radius
+            let d = delta.length
+            if d > 0.01 && d < minDist {
+                e.position += delta.normalized * (minDist - d)
+            }
+        }
+    }
+
+    private func hitBoss(damage: Int, at point: CGPoint) {
+        guard let boss, !boss.dead else { return }
+        boss.hp -= damage
+        boss.flash()
+        hud.setBossHP(CGFloat(boss.hp) / CGFloat(boss.maxHP))
+        FX.burst(at: point, color: boss.spec.color, count: 3, speed: 150, in: world)
+        Audio.shared.play(.hit, volume: 0.6)
+        if boss.hp <= 0 { killBoss(boss) }
+    }
+
+    private func killBoss(_ b: Boss) {
+        b.dead = true
+        b.shutdown()
+        boss = nil
+        hud.setBossHP(0)
+
+        // Their bullets fizzle with them.
+        for bullet in bullets where !bullet.friendly && !bullet.dead {
+            bullet.dead = true
+            FX.burst(at: bullet.position, color: b.spec.color, count: 2, speed: 60, in: world)
+        }
+
+        let points = 5000 * (wave / 10)
+        score += points
+        hud.setScore(score)
+        FX.popup("\(b.spec.name) DOWN  +\(points)", at: b.position + CGVector(dx: 0, dy: b.radius + 24),
+                 color: Palette.acid, in: world)
+
+        // Chain of explosions, then the big one.
+        hitStop = 0.18
+        shake = 30
+        Haptics.death()
+        Audio.shared.play(.bigExplode)
+        var chain: [SKAction] = []
+        for i in 0..<8 {
+            chain.append(.run { [weak self, weak b] in
+                guard let self, let b else { return }
+                let offset = CGVector(angle: CGFloat.random(in: 0...(.pi * 2)), length: CGFloat.random(in: 0...b.radius))
+                let colors = [b.spec.color, b.spec.accent, Palette.amber, .white]
+                FX.burst(at: b.position + offset, color: colors[i % colors.count], count: 40, speed: 320, in: self.world)
+                FX.shockwave(at: b.position + offset, color: b.spec.accent, radius: b.radius * 0.7, in: self.world)
+                self.shake = max(self.shake, 12)
+                Audio.shared.play(.explode, volume: 0.8)
+                Haptics.heavy()
+            })
+            chain.append(.wait(forDuration: 0.12))
+        }
+        chain.append(.run { [weak self, weak b] in
+            guard let self, let b else { return }
+            FX.burst(at: b.position, color: .white, count: 160, speed: 620, in: self.world)
+            FX.burst(at: b.position, color: b.spec.color, count: 120, speed: 420, in: self.world)
+            FX.shockwave(at: b.position, color: b.spec.color, radius: b.radius * 3, in: self.world)
+            FX.shockwave(at: b.position, color: .white, radius: b.radius * 5, in: self.world)
+            self.shake = 34
+            self.damageFlash?.removeAllActions()
+            self.damageFlash?.color = .white
+            self.damageFlash?.alpha = 0.45
+            self.damageFlash?.run(.sequence([.fadeOut(withDuration: 0.5), .run { [weak self] in self?.damageFlash?.color = Palette.blood }]))
+            Audio.shared.play(.bigExplode)
+            Haptics.death()
+            self.hud.hideBossBar()
+        })
+        chain.append(.removeFromParent())
+        b.run(.group([
+            .sequence(chain),
+            .sequence([.wait(forDuration: 0.9), .fadeOut(withDuration: 0.1)]),
+            .repeat(.sequence([.moveBy(x: 6, y: 0, duration: 0.03), .moveBy(x: -6, y: 0, duration: 0.03)]), count: 16),
+        ]))
     }
 
     private func dropWeapon(at point: CGPoint) {

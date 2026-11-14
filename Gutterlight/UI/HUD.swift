@@ -17,6 +17,10 @@ final class HUD: SKNode {
 
     private let titleCard = SKNode()
     private let titleBest = HUD.label("", size: 14, color: SKColor.white.withAlphaComponent(0.6))
+    private let bossBar = SKNode()
+    private let bossFill = SKSpriteNode(color: Palette.blood, size: CGSize(width: 1, height: 8))
+    private let bossName = HUD.label("", size: 14, color: .white, font: Fonts.display)
+    private static let bossBarWidth: CGFloat = 320
     private let helpButton = SKNode()
     private let helpPanel = HelpPanel()
     private static let helpButtonRadius: CGFloat = 20
@@ -53,6 +57,7 @@ final class HUD: SKNode {
         buildTitleCard()
         buildGameOverCard()
         buildHelpButton()
+        buildBossBar()
 
         helpPanel.zPosition = 30
         addChild(helpPanel)
@@ -120,6 +125,29 @@ final class HUD: SKNode {
         addChild(titleCard)
     }
 
+    private func buildBossBar() {
+        let w = HUD.bossBarWidth
+        let frame = SKShapeNode(rectOf: CGSize(width: w + 6, height: 14), cornerRadius: 3)
+        frame.strokeColor = SKColor.white.withAlphaComponent(0.6)
+        frame.fillColor = SKColor.black.withAlphaComponent(0.5)
+        frame.lineWidth = 1.5
+        frame.zPosition = 0
+        bossBar.addChild(frame)
+
+        bossFill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        bossFill.position = CGPoint(x: -w / 2, y: 0)
+        bossFill.zPosition = 1
+        bossBar.addChild(bossFill)
+
+        bossName.position = CGPoint(x: 0, y: 18)
+        bossName.zPosition = 1
+        bossBar.addChild(bossName)
+
+        bossBar.zPosition = 3
+        bossBar.isHidden = true
+        addChild(bossBar)
+    }
+
     private func buildHelpButton() {
         let ring = SKShapeNode(circleOfRadius: HUD.helpButtonRadius)
         ring.strokeColor = Palette.cyan
@@ -174,6 +202,8 @@ final class HUD: SKNode {
         hpNode.position = CGPoint(x: 0, y: top)
 
         helpButton.position = CGPoint(x: right - HUD.helpButtonRadius, y: top - 4)
+        bossBar.position = CGPoint(x: 0, y: top - 52)
+        bossBar.setScale(max(0.45, min(1, (right - left - 360) / HUD.bossBarWidth)))
         helpPanel.build(for: size)
 
         let cardScale = min(1, size.width / 760, size.height / 380)
@@ -262,6 +292,27 @@ final class HUD: SKNode {
         gameOverCard.run(.fadeIn(withDuration: 0.5))
         bannerNode.removeAllActions()
         bannerNode.alpha = 0
+    }
+
+    // MARK: Boss bar
+
+    func showBossBar(name: String, color: SKColor) {
+        bossName.text = name
+        bossName.fontColor = color
+        bossFill.color = color == .white ? Palette.blood : color
+        bossFill.size = CGSize(width: HUD.bossBarWidth, height: 8)
+        bossBar.isHidden = false
+        bossBar.alpha = 0
+        bossBar.run(.fadeIn(withDuration: 0.4))
+    }
+
+    func setBossHP(_ fraction: CGFloat) {
+        bossFill.size = CGSize(width: max(0, fraction) * HUD.bossBarWidth, height: 8)
+    }
+
+    func hideBossBar() {
+        bossBar.removeAllActions()
+        bossBar.isHidden = true
     }
 
     // MARK: Help

@@ -68,25 +68,30 @@ final class Bullet: SKNode {
         zPosition = 4
     }
 
-    /// Enemy round.
-    init(enemyVelocity velocity: CGVector) {
+    /// Enemy round. Sprite-based (no SKShapeNode glow) so boss bullet-hell stays smooth.
+    init(enemyVelocity velocity: CGVector, color: SKColor = Palette.amber, big: Bool = false) {
         friendly = false
         damage = 1
         pierces = false
         blastRadius = 0
         knockback = 0
-        radius = 6
-        life = 4
+        radius = big ? 8 : 6
+        life = 6
         self.velocity = velocity
 
-        let shape = SKShapeNode(circleOfRadius: 5)
-        shape.fillColor = Palette.amber.withAlphaComponent(0.8)
-        shape.strokeColor = Palette.amber
-        shape.lineWidth = 1.5
-        shape.glowWidth = 5
-
         super.init()
-        addChild(shape)
+        let glow = SKSpriteNode(texture: FX.spark, size: CGSize(width: radius * 4.4, height: radius * 4.4))
+        glow.color = color
+        glow.colorBlendFactor = 1
+        glow.blendMode = .add
+        glow.zPosition = 0
+        addChild(glow)
+
+        let core = SKSpriteNode(texture: FX.spark, size: CGSize(width: radius * 2, height: radius * 2))
+        core.color = .white
+        core.colorBlendFactor = 1
+        core.zPosition = 1
+        addChild(core)
         zPosition = 4
     }
 

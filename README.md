@@ -12,6 +12,24 @@ de neon flikkert en de Suits willen hun straten terug.
 - Om de 5 waves komt er een Brute. Die laat altijd een wapen vallen en vaak ook een stim pack (+1 HP).
 - Om de 3 waves ligt er na een clear een wapenkrat klaar.
 
+### Bazen
+
+Elke 10e wave komt er een baas, met een levensbalk en drie fases (bij 66% en 33% HP wordt hij sneller en agressiever).
+Na wave 100 begint de rij opnieuw, elke ronde taaier.
+
+| Wave | Baas               | Stijl                                          |
+|------|--------------------|------------------------------------------------|
+| 10   | THE MIDDLE MANAGER | achtervolgt, ringen + waaiers, roept Suits     |
+| 20   | KENNEL MASTER      | dashes, roept Hounds                           |
+| 30   | RIOT CAPTAIN       | salvo's van 3, roept Enforcers                 |
+| 40   | THE BULLDOZER      | groot, chargeert, dichte schokgolven           |
+| 50   | SPIN DOCTOR        | spiralen                                       |
+| 60   | THE AUDITOR        | teleporteert en barst uit                      |
+| 70   | BIG BROTHER        | volgt je met een kogelstroom                   |
+| 80   | THE LOBBYIST       | grote waaiers, koopt versterking in            |
+| 90   | THE BOARD          | 6–8-armige spiralen, streams                   |
+| 100  | THE CHAIRMAN       | alles tegelijk                                 |
+
 ### Wapens
 
 Wapens liggen als draaiende kratten op straat. Is de munitie op, dan val je terug op de SPITTER.
