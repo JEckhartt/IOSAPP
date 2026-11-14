@@ -10,7 +10,7 @@ de neon flikkert en de Suits willen hun straten terug.
 - **PLAY**: start bij wave 1
 - **HIGH SCORES**: top 10, met wave, moeilijkheid en datum
 - **UNLOCKS**:
-  - *Upgrade points*: elke overleefde wave levert 1 punt op. Elk punt geeft de SPITTER +1 damage (je kunt het terugdraaien met −). Ontgrendelt na je eerste overleefde wave.
+  - *Upgrade points*: elke overleefde wave levert 1 punt op. Elk punt geeft je startwapen +1 damage (je kunt het terugdraaien met −). Ontgrendelt na je eerste overleefde wave.
   - *Extra lives*: elke baas die je voor het eerst verslaat geeft permanent +1 max HP. Zet je dit aan, dan begin je met meer levens; uit kan ook.
 - **DIFFICULTY**: slider van −100% tot +100% in stappen van 10%. Dit schaalt het aantal vijanden en hun HP (25%–200%) en hun snelheid, kogelsnelheid en vuurtempo (50%–150%).
 - **START WEAPON** (in UNLOCKS): kies je startwapen uit wat bazen hebben vrijgespeeld

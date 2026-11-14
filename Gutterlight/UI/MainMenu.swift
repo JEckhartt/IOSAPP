@@ -290,7 +290,7 @@ final class MainMenu: SKNode {
                  at: CGPoint(x: 0, y: 74), in: unlocksPage)
 
         // SPITTER damage
-        _ = text("SPITTER DAMAGE", size: 18, color: Palette.magenta, at: CGPoint(x: -320, y: 42), in: unlocksPage,
+        _ = text("START WEAPON DMG", size: 18, color: Palette.magenta, at: CGPoint(x: -320, y: 42), in: unlocksPage,
                  font: Fonts.display, align: .left)
         spitterValue.horizontalAlignmentMode = .left
         spitterValue.position = CGPoint(x: -80, y: 42)
@@ -361,8 +361,9 @@ final class MainMenu: SKNode {
         pointsLabel.text = "UPGRADE POINTS  \(p.points)"
 
         if p.spitterUnlocked {
-            let dmg = Weapon.spitter.damage + p.spitterBonus
-            spitterValue.text = "DMG \(dmg)" + (p.spitterBonus > 0 ? "   (+\(p.spitterBonus))" : "")
+            let start = p.isUnlocked(s.defaultWeapon) ? s.defaultWeapon : .spitter
+            let dmg = start.damage + p.spitterBonus
+            spitterValue.text = "\(start.name)  DMG \(dmg)" + (p.spitterBonus > 0 ? "  (+\(p.spitterBonus))" : "")
             spitterValue.fontColor = .white
             spitterMinus.isEnabled = p.spitterBonus > 0
             spitterPlus.isEnabled = p.points > 0

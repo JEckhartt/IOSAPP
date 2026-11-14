@@ -55,7 +55,8 @@ final class GameScene: SKScene {
     // Run configuration (snapshotted from Store when a run starts).
     private let menu = MainMenu()
     private var difficulty = Difficulty()
-    private var spitterBonus = 0
+    /// Bought damage bonus, applied to the start weapon.
+    private var startWeaponBonus = 0
     private var godMode = false
     /// God mode or boss skip: nothing gets saved.
     private var isDevRun = false
@@ -192,7 +193,7 @@ final class GameScene: SKScene {
         difficulty = settings.difficulty
         godMode = settings.godMode
         isDevRun = dev || godMode
-        spitterBonus = progress.spitterUnlocked ? progress.spitterBonus : 0
+        startWeaponBonus = progress.spitterUnlocked ? progress.spitterBonus : 0
         baseWeapon = progress.isUnlocked(settings.defaultWeapon) ? settings.defaultWeapon : .spitter
         lastRun = (startWave, dev)
         let maxHP = Player.baseMaxHP + (settings.extraLivesEnabled ? progress.extraLives : 0)
@@ -469,7 +470,7 @@ final class GameScene: SKScene {
             let dir = CGVector(angle: angle)
             let speed = weapon.speed * (pellets > 1 ? CGFloat.random(in: 0.85...1.1) : 1)
             let bullet = Bullet(weapon: weapon, velocity: dir * speed,
-                                damageBonus: weapon == .spitter ? spitterBonus : 0)
+                                damageBonus: weapon == baseWeapon ? startWeaponBonus : 0)
             bullet.position = player.position + dir * 20
             world.addChild(bullet)
             bullet.trail?.targetNode = world

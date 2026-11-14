@@ -45,7 +45,8 @@ struct Progress: Codable {
     var points = 0
     /// Lifetime points earned; > 0 means wave 1 has been survived at least once.
     var pointsEarned = 0
-    /// Bonus damage bought for the SPITTER.
+    /// Bonus damage bought with upgrade points; applies to whichever start weapon is chosen.
+    /// (Key name kept from when it only applied to the SPITTER, so old saves still load.)
     var spitterBonus = 0
     /// Roster indices (0…9) of bosses beaten at least once.
     var bossesDefeated: Set<Int> = []
