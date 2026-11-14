@@ -9,3 +9,5 @@ build/
 
 # XcodeGen genereert deze
 Gutterlight/Support/Info.plist
+Design/icon.html
+Design/raw.png
