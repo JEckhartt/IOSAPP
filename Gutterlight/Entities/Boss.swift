@@ -199,10 +199,10 @@ final class Boss: SKNode {
     private let telegraph: SKShapeNode
     private var blinkMarker: SKShapeNode?
 
-    init(spec: BossSpec, lap: Int) {
+    init(spec: BossSpec, lap: Int, difficulty: Difficulty) {
         self.spec = spec
-        self.lapScale = 1 + CGFloat(lap) * 0.15
-        self.maxHP = spec.hp * (1 + lap)
+        self.lapScale = (1 + CGFloat(lap) * 0.15) * difficulty.tempo
+        self.maxHP = difficulty.scaledHP(spec.hp * (1 + lap))
         self.hp = maxHP
 
         let rotation: CGFloat = spec.sides == 4 && spec.color != .white ? .pi / 4 : (spec.sides == 3 ? .pi / 2 : 0)

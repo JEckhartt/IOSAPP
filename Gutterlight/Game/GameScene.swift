@@ -49,11 +49,14 @@ final class GameScene: SKScene {
     private var spawnTimer: TimeInterval = 0
     private var nextWaveIn: TimeInterval?
 
-    private static let bestKey = "gutterlight.bestScore"
-    private var best: Int {
-        get { UserDefaults.standard.integer(forKey: Self.bestKey) }
-        set { UserDefaults.standard.set(newValue, forKey: Self.bestKey) }
-    }
+    // Run configuration (snapshotted from Store when a run starts).
+    private let menu = MainMenu()
+    private var difficulty = Difficulty()
+    private var spitterBonus = 0
+    private var godMode = false
+    /// God mode or boss skip: nothing gets saved.
+    private var isDevRun = false
+    private var lastRun: (startWave: Int, dev: Bool) = (1, false)
 
     private static let waveQuips = [
         "THE SUITS WANT THEIR STREETS BACK",
@@ -97,8 +100,17 @@ final class GameScene: SKScene {
         cam.addChild(moveStick)
         cam.addChild(aimStick)
 
+        menu.zPosition = 150
+        menu.onPlay = { [weak self] in
+            self?.startGame(atWave: 1, dev: Store.settings.godMode)
+        }
+        menu.onSkipToWave = { [weak self] wave in
+            self?.startGame(atWave: wave, dev: true)
+        }
+        cam.addChild(menu)
+
         layoutForSize()
-        hud.showTitle(best: best)
+        showMenu()
 
         Audio.shared.start()
         Audio.shared.playMusic()
@@ -115,6 +127,7 @@ final class GameScene: SKScene {
         guard size.width > 0, size.height > 0 else { return }
         backdrop.build(for: size)
         hud.layout(for: size, insets: view?.safeAreaInsets ?? .zero)
+        menu.layout(for: size, insets: view?.safeAreaInsets ?? .zero)
 
         rain?.removeFromParent()
         vignette?.removeFromParent()
@@ -146,7 +159,39 @@ final class GameScene: SKScene {
 
     // MARK: Game flow
 
-    private func startGame() {
+    private func showMenu() {
+        state = .title
+        releaseAllSticks()
+        clearWorld()
+        player.isHidden = true
+        hud.showMenuMode()
+        menu.show()
+        Audio.shared.setMusicLevel(.title)
+    }
+
+    private func clearWorld() {
+        enemies.forEach { $0.removeFromParent() }
+        bullets.forEach { $0.removeFromParent() }
+        pickups.forEach { $0.removeFromParent() }
+        enemies.removeAll()
+        bullets.removeAll()
+        pickups.removeAll()
+        boss?.removeFromParent()
+        boss = nil
+        hud.hideBossBar()
+    }
+
+    private func startGame(atWave startWave: Int, dev: Bool) {
+        let settings = Store.settings
+        let progress = Store.progress
+        difficulty = settings.difficulty
+        godMode = settings.godMode
+        isDevRun = dev || godMode
+        spitterBonus = progress.spitterUnlocked ? progress.spitterBonus : 0
+        lastRun = (startWave, dev)
+        let maxHP = Player.baseMaxHP + (settings.extraLivesEnabled ? progress.extraLives : 0)
+        menu.hide()
+
         enemies.forEach { $0.removeFromParent() }
         bullets.forEach { $0.removeFromParent() }
         pickups.forEach { $0.removeFromParent() }
@@ -157,13 +202,13 @@ final class GameScene: SKScene {
         boss = nil
         hud.hideBossBar()
 
-        player.reset()
+        player.reset(maxHP: maxHP)
         player.isHidden = false
 
         score = 0
         comboKills = 0
         comboTimer = 0
-        wave = 0
+        wave = max(0, startWave - 1)
         spawnQueue = []
         nextWaveIn = 0.8
         fireCooldown = 0
@@ -173,7 +218,8 @@ final class GameScene: SKScene {
         hud.setScore(0)
         hud.setCombo(1)
         hud.setWave(0)
-        hud.setHP(player.hp, max: Player.maxHP)
+        hud.setHP(player.hp, max: player.maxHP)
+        hud.setDevTag(godMode ? "GOD MODE" : (isDevRun ? "DEV RUN" : nil))
         equip(.spitter, announce: false)
         Audio.shared.setMusicLevel(.playing)
         state = .playing
@@ -185,7 +231,7 @@ final class GameScene: SKScene {
             startBossWave(encounter.spec, lap: encounter.lap)
             return
         }
-        let count = 5 + wave * 3
+        let count = max(3, Int((Double(5 + wave * 3) * difficulty.amount).rounded()))
         var queue: [Enemy.Kind] = []
         for _ in 0..<count {
             let roll = Double.random(in: 0..<1)
@@ -209,7 +255,7 @@ final class GameScene: SKScene {
 
     private func startBossWave(_ spec: BossSpec, lap: Int) {
         spawnQueue = []
-        let b = Boss(spec: spec, lap: lap)
+        let b = Boss(spec: spec, lap: lap, difficulty: difficulty)
         b.position = CGPoint(x: 0, y: arena.maxY + spec.radius + 40)
         world.addChild(b)
         boss = b
@@ -238,9 +284,11 @@ final class GameScene: SKScene {
         Audio.shared.play(.gameOver)
         Audio.shared.setMusicLevel(.dead)
 
-        let newBest = score > best
-        if newBest { best = score }
-        hud.showGameOver(score: score, best: best, wave: wave, newBest: newBest)
+        var newBest = false
+        if !isDevRun {
+            newBest = Store.submit(score: score, wave: wave, difficulty: difficulty) == 0
+        }
+        hud.showGameOver(score: score, best: Store.best, wave: wave, newBest: newBest, devRun: isDevRun)
     }
 
     // MARK: Touch input
@@ -248,20 +296,15 @@ final class GameScene: SKScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         switch state {
         case .title:
-            guard let touch = touches.first else { return }
-            if hud.isHelpVisible {
-                hud.hideHelp()
-                return
-            }
-            if hud.helpButtonContains(touch.location(in: cam)) {
-                hud.showHelp()
-                Audio.shared.play(.pickup, volume: 0.6)
-                return
-            }
-            startGame()
+            menu.touchesBegan(touches)
             return
         case .dead:
-            if deadDelay <= 0 { startGame() }
+            guard deadDelay <= 0, let touch = touches.first else { return }
+            switch hud.gameOverChoice(for: touch) {
+            case .retry?: startGame(atWave: lastRun.startWave, dev: lastRun.dev)
+            case .menu?: showMenu()
+            case nil: break
+            }
             return
         case .playing:
             break
@@ -277,12 +320,14 @@ final class GameScene: SKScene {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if state == .title { menu.touchesMoved(touches) }
         for touch in touches {
             touchSticks[ObjectIdentifier(touch)]?.move(to: touch.location(in: cam))
         }
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if state == .title { menu.touchesEnded(touches) }
         for touch in touches {
             touchSticks.removeValue(forKey: ObjectIdentifier(touch))?.end()
         }
@@ -313,7 +358,7 @@ final class GameScene: SKScene {
         case .dead:
             if deadDelay > 0 {
                 deadDelay -= dt
-                if deadDelay <= 0 { hud.enableGameOverPrompt() }
+                if deadDelay <= 0 { hud.enableGameOverButtons() }
             }
             updateBullets(dt)
             cleanup()
@@ -388,7 +433,8 @@ final class GameScene: SKScene {
             }
             let dir = CGVector(angle: angle)
             let speed = weapon.speed * (pellets > 1 ? CGFloat.random(in: 0.85...1.1) : 1)
-            let bullet = Bullet(weapon: weapon, velocity: dir * speed)
+            let bullet = Bullet(weapon: weapon, velocity: dir * speed,
+                                damageBonus: weapon == .spitter ? spitterBonus : 0)
             bullet.position = player.position + dir * 20
             world.addChild(bullet)
             bullet.trail?.targetNode = world
@@ -476,11 +522,18 @@ final class GameScene: SKScene {
             score += wave * 250
             hud.setScore(score)
             FX.popup("WAVE CLEAR  +\(wave * 250)", at: player.position + CGVector(dx: 0, dy: 30), color: Palette.acid, in: world)
+            if !isDevRun {
+                var progress = Store.progress
+                progress.points += 1
+                progress.pointsEarned += 1
+                Store.progress = progress
+                FX.popup("+1 UPGRADE POINT", at: player.position + CGVector(dx: 0, dy: 52), color: .white, in: world)
+            }
         }
     }
 
     private func spawnEnemy(_ kind: Enemy.Kind) {
-        let enemy = Enemy(kind: kind, wave: wave)
+        let enemy = Enemy(kind: kind, wave: wave, difficulty: difficulty)
         let margin = kind.radius + 30
         let a = arena
         let pos: CGPoint
@@ -521,8 +574,8 @@ final class GameScene: SKScene {
                 }
                 e.fireTimer -= dt
                 if e.fireTimer <= 0 && dist < 520 && arena.contains(e.position) {
-                    e.fireTimer = max(0.9, 2.0 - Double(wave) * 0.06)
-                    let shot = Bullet(enemyVelocity: dir * (230 + CGFloat(min(wave, 12)) * 8))
+                    e.fireTimer = max(0.9, 2.0 - Double(wave) * 0.06) / Double(difficulty.tempo)
+                    let shot = Bullet(enemyVelocity: dir * ((230 + CGFloat(min(wave, 12)) * 8) * difficulty.tempo))
                     shot.position = e.position + dir * (e.kind.radius + 4)
                     world.addChild(shot)
                     bullets.append(shot)
@@ -645,8 +698,8 @@ final class GameScene: SKScene {
             p.dead = true
             switch p.kind {
             case .health:
-                player.hp = min(Player.maxHP, player.hp + 1)
-                hud.setHP(player.hp, max: Player.maxHP)
+                player.hp = min(player.maxHP, player.hp + 1)
+                hud.setHP(player.hp, max: player.maxHP)
                 FX.burst(at: p.position, color: Palette.acid, count: 18, in: world)
                 FX.popup("+1 HP", at: p.position, color: Palette.acid, in: world)
                 Audio.shared.play(.pickup)
@@ -706,7 +759,7 @@ final class GameScene: SKScene {
         if !out.shots.isEmpty { Audio.shared.play(.enemyShot, volume: 0.7) }
 
         for (i, kind) in out.summons.enumerated() {
-            let enemy = Enemy(kind: kind, wave: wave)
+            let enemy = Enemy(kind: kind, wave: wave, difficulty: difficulty)
             let a = CGFloat(i) / CGFloat(max(1, out.summons.count)) * .pi * 2
             enemy.position = boss.position + CGVector(angle: a, length: boss.radius + 30)
             world.addChild(enemy)
@@ -760,6 +813,22 @@ final class GameScene: SKScene {
         b.shutdown()
         boss = nil
         hud.setBossHP(0)
+
+        // Loot: first kill of each boss permanently adds one max HP.
+        if !isDevRun {
+            let index = (wave / 10 - 1) % BossSpec.roster.count
+            var progress = Store.progress
+            if !progress.bossesDefeated.contains(index) {
+                progress.bossesDefeated.insert(index)
+                Store.progress = progress
+                if Store.settings.extraLivesEnabled {
+                    player.maxHP += 1
+                    player.hp += 1
+                    hud.setHP(player.hp, max: player.maxHP)
+                }
+                FX.popup("MAX HP +1 UNLOCKED", at: player.position + CGVector(dx: 0, dy: 40), color: Palette.magenta, in: world)
+            }
+        }
 
         // Their bullets fizzle with them.
         for bullet in bullets where !bullet.friendly && !bullet.dead {
@@ -871,10 +940,10 @@ final class GameScene: SKScene {
     }
 
     private func damagePlayer() {
-        guard state == .playing, player.invulnerable <= 0 else { return }
+        guard state == .playing, player.invulnerable <= 0, !godMode else { return }
         player.hp -= 1
         player.invulnerable = 1.2
-        hud.setHP(player.hp, max: Player.maxHP)
+        hud.setHP(player.hp, max: player.maxHP)
 
         comboKills = 0
         hud.setCombo(1)

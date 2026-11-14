@@ -3,10 +3,12 @@ import SpriteKit
 /// VEX — one punk, one gun, zero permits.
 final class Player: SKNode {
     static let radius: CGFloat = 14
-    static let maxHP = 5
+    static let baseMaxHP = 5
     static let moveSpeed: CGFloat = 270
 
-    var hp = Player.maxHP
+    /// Base 5, plus one per boss ever beaten (when EXTRA LIVES is on).
+    var maxHP = Player.baseMaxHP
+    var hp = Player.baseMaxHP
     var velocity = CGVector.zero
     var invulnerable: TimeInterval = 0
 
@@ -48,8 +50,9 @@ final class Player: SKNode {
 
     required init?(coder aDecoder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    func reset() {
-        hp = Player.maxHP
+    func reset(maxHP: Int) {
+        self.maxHP = maxHP
+        hp = maxHP
         velocity = .zero
         invulnerable = 1.0
         position = .zero

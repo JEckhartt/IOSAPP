@@ -81,10 +81,10 @@ final class Enemy: SKNode {
 
     private let shell: SKShapeNode
 
-    init(kind: Kind, wave: Int) {
+    init(kind: Kind, wave: Int, difficulty: Difficulty) {
         self.kind = kind
-        self.hp = kind.maxHP + (kind == .brute ? wave / 2 : 0)
-        self.moveSpeed = kind.speed * (1 + CGFloat(min(wave, 15)) * 0.03)
+        self.hp = difficulty.scaledHP(kind.maxHP + (kind == .brute ? wave / 2 : 0))
+        self.moveSpeed = kind.speed * (1 + CGFloat(min(wave, 15)) * 0.03) * difficulty.tempo
         self.fireTimer = TimeInterval.random(in: 1.0...2.5)
 
         let rotation: CGFloat = kind == .suit ? .pi / 4 : 0

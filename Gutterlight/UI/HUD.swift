@@ -3,7 +3,7 @@ import CoreImage
 import UIKit
 import QuartzCore
 
-/// Screen-space overlay: score, combo, wave, health, and the title / game-over cards.
+/// Screen-space overlay: score, combo, wave, health, boss bar, banners and the game-over card.
 final class HUD: SKNode {
     private let scoreLabel = HUD.label("0", size: 26, color: .white)
     private let comboLabel = HUD.label("", size: 18, color: Palette.acid)
@@ -15,24 +15,21 @@ final class HUD: SKNode {
     private let bannerTitle = HUD.label("", size: 44, color: Palette.magenta, font: Fonts.display)
     private let bannerSub = HUD.label("", size: 15, color: Palette.cyan)
 
-    private let titleCard = SKNode()
-    private let titleBest = HUD.label("", size: 14, color: SKColor.white.withAlphaComponent(0.6))
     private let bossBar = SKNode()
     private let bossFill = SKSpriteNode(color: Palette.blood, size: CGSize(width: 1, height: 8))
     private let bossName = HUD.label("", size: 14, color: .white, font: Fonts.display)
     private static let bossBarWidth: CGFloat = 320
-    private let helpButton = SKNode()
-    private let helpPanel = HelpPanel()
-    private static let helpButtonRadius: CGFloat = 20
-
-    var isHelpVisible: Bool { !helpPanel.isHidden }
+    private let devTag = HUD.label("", size: 11, color: Palette.blood, font: Fonts.display)
 
     private let gameOverCard = SKNode()
     private let goScore = HUD.label("", size: 30, color: .white)
     private let goDetail = HUD.label("", size: 15, color: Palette.cyan)
-    private let goPrompt = HUD.label("TAP TO GO AGAIN", size: 17, color: .white)
+    private let retryButton = MenuButton("RETRY", width: 170, height: 42, color: Palette.magenta, fontSize: 20)
+    private let menuButton = MenuButton("MENU", width: 170, height: 42, color: Palette.cyan, fontSize: 20)
 
-    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, weaponLabel, hpNode] }
+    enum GameOverChoice { case retry, menu }
+
+    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, weaponLabel, hpNode, devTag] }
 
     override init() {
         super.init()
@@ -54,13 +51,8 @@ final class HUD: SKNode {
         bannerNode.zPosition = 2
         addChild(bannerNode)
 
-        buildTitleCard()
         buildGameOverCard()
-        buildHelpButton()
         buildBossBar()
-
-        helpPanel.zPosition = 30
-        addChild(helpPanel)
     }
 
     required init?(coder aDecoder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -98,33 +90,6 @@ final class HUD: SKNode {
         return node
     }
 
-    private func buildTitleCard() {
-        let title = HUD.neonText("GUTTERLIGHT", size: 72, color: Palette.magenta)
-        title.position = CGPoint(x: 0, y: 60)
-        title.run(FX.flicker())
-
-        let sub = HUD.label("A NEO-NOIR PUNK RIOT", size: 16, color: Palette.cyan)
-        sub.position = CGPoint(x: 0, y: 6)
-
-        let prompt = HUD.label("TAP TO RIOT", size: 20, color: .white)
-        prompt.position = CGPoint(x: 0, y: -52)
-        prompt.run(.repeatForever(.sequence([.fadeAlpha(to: 0.25, duration: 0.6), .fadeAlpha(to: 1, duration: 0.6)])))
-
-        let controls = HUD.label("LEFT THUMB: MOVE   ·   RIGHT THUMB: AIM + FIRE", size: 12,
-                                 color: SKColor.white.withAlphaComponent(0.5))
-        controls.position = CGPoint(x: 0, y: -92)
-
-        titleBest.position = CGPoint(x: 0, y: -118)
-
-        for (i, n) in ([title, sub, prompt, controls, titleBest] as [SKNode]).enumerated() {
-            n.zPosition = CGFloat(i)
-            titleCard.addChild(n)
-        }
-        titleCard.zPosition = 10
-        titleCard.isHidden = true
-        addChild(titleCard)
-    }
-
     private func buildBossBar() {
         let w = HUD.bossBarWidth
         let frame = SKShapeNode(rectOf: CGSize(width: w + 6, height: 14), cornerRadius: 3)
@@ -148,25 +113,6 @@ final class HUD: SKNode {
         addChild(bossBar)
     }
 
-    private func buildHelpButton() {
-        let ring = SKShapeNode(circleOfRadius: HUD.helpButtonRadius)
-        ring.strokeColor = Palette.cyan
-        ring.fillColor = Palette.cyan.withAlphaComponent(0.1)
-        ring.lineWidth = 2
-        ring.glowWidth = 3
-        ring.zPosition = 0
-        helpButton.addChild(ring)
-
-        let mark = HUD.label("?", size: 24, color: .white, font: Fonts.display)
-        mark.zPosition = 1
-        helpButton.addChild(mark)
-
-        helpButton.zPosition = 20
-        helpButton.isHidden = true
-        helpButton.run(FX.flicker())
-        addChild(helpButton)
-    }
-
     private func buildGameOverCard() {
         let title = HUD.neonText("FLATLINED", size: 64, color: Palette.blood)
         title.position = CGPoint(x: 0, y: 70)
@@ -176,10 +122,10 @@ final class HUD: SKNode {
 
         goScore.position = CGPoint(x: 0, y: -16)
         goDetail.position = CGPoint(x: 0, y: -50)
-        goPrompt.position = CGPoint(x: 0, y: -96)
-        goPrompt.run(.repeatForever(.sequence([.fadeAlpha(to: 0.25, duration: 0.6), .fadeAlpha(to: 1, duration: 0.6)])))
+        retryButton.position = CGPoint(x: -100, y: -104)
+        menuButton.position = CGPoint(x: 100, y: -104)
 
-        for (i, n) in ([title, quip, goScore, goDetail, goPrompt] as [SKNode]).enumerated() {
+        for (i, n) in ([title, quip, goScore, goDetail, retryButton, menuButton] as [SKNode]).enumerated() {
             n.zPosition = CGFloat(i)
             gameOverCard.addChild(n)
         }
@@ -200,14 +146,11 @@ final class HUD: SKNode {
         waveLabel.position = CGPoint(x: right, y: top)
         weaponLabel.position = CGPoint(x: right, y: top - 28)
         hpNode.position = CGPoint(x: 0, y: top)
+        devTag.position = CGPoint(x: 0, y: top - 20)
 
-        helpButton.position = CGPoint(x: right - HUD.helpButtonRadius, y: top - 4)
         bossBar.position = CGPoint(x: 0, y: top - 52)
         bossBar.setScale(max(0.45, min(1, (right - left - 360) / HUD.bossBarWidth)))
-        helpPanel.build(for: size)
-
         let cardScale = min(1, size.width / 760, size.height / 380)
-        titleCard.setScale(cardScale)
         gameOverCard.setScale(cardScale)
         bannerNode.setScale(cardScale)
     }
@@ -273,25 +216,46 @@ final class HUD: SKNode {
 
     // MARK: Cards
 
-    func showTitle(best: Int) {
-        titleBest.text = best > 0 ? "BEST  \(best.formatted())" : ""
-        titleCard.isHidden = false
-        helpButton.isHidden = false
-        helpPanel.isHidden = true
+    /// Hide everything gameplay-related (the main menu takes over the screen).
+    func showMenuMode() {
         gameOverCard.isHidden = true
+        bannerNode.removeAllActions()
+        bannerNode.alpha = 0
+        hideBossBar()
         gameplayNodes.forEach { $0.isHidden = true }
     }
 
-    func showGameOver(score: Int, best: Int, wave: Int, newBest: Bool) {
+    func showGameOver(score: Int, best: Int, wave: Int, newBest: Bool, devRun: Bool) {
         goScore.text = score.formatted()
-        goDetail.text = newBest ? "NEW BEST  ·  WAVE \(wave)" : "BEST \(best.formatted())  ·  WAVE \(wave)"
-        goDetail.fontColor = newBest ? Palette.acid : Palette.cyan
-        goPrompt.isHidden = true
+        if devRun {
+            goDetail.text = "DEV RUN  ·  WAVE \(wave)  ·  NOT SAVED"
+            goDetail.fontColor = Palette.blood
+        } else {
+            goDetail.text = newBest ? "NEW BEST  ·  WAVE \(wave)" : "BEST \(best.formatted())  ·  WAVE \(wave)"
+            goDetail.fontColor = newBest ? Palette.acid : Palette.cyan
+        }
+        retryButton.isHidden = true
+        menuButton.isHidden = true
         gameOverCard.isHidden = false
         gameOverCard.alpha = 0
         gameOverCard.run(.fadeIn(withDuration: 0.5))
         bannerNode.removeAllActions()
         bannerNode.alpha = 0
+    }
+
+    func enableGameOverButtons() {
+        retryButton.isHidden = false
+        menuButton.isHidden = false
+    }
+
+    func gameOverChoice(for touch: UITouch) -> GameOverChoice? {
+        if retryButton.hitTest(touch) { retryButton.press(); return .retry }
+        if menuButton.hitTest(touch) { menuButton.press(); return .menu }
+        return nil
+    }
+
+    func setDevTag(_ text: String?) {
+        devTag.text = text ?? ""
     }
 
     // MARK: Boss bar
@@ -315,35 +279,7 @@ final class HUD: SKNode {
         bossBar.isHidden = true
     }
 
-    // MARK: Help
-
-    /// `point` is in HUD (camera) space. Generous hit area for thumbs.
-    func helpButtonContains(_ point: CGPoint) -> Bool {
-        !helpButton.isHidden && point.distance(to: helpButton.position) < HUD.helpButtonRadius + 22
-    }
-
-    func showHelp() {
-        helpPanel.isHidden = false
-        helpPanel.alpha = 0
-        helpPanel.run(.fadeIn(withDuration: 0.15))
-        helpButton.isHidden = true
-        titleCard.isHidden = true
-    }
-
-    func hideHelp() {
-        helpPanel.isHidden = true
-        helpButton.isHidden = false
-        titleCard.isHidden = false
-    }
-
-    func enableGameOverPrompt() {
-        goPrompt.isHidden = false
-    }
-
     func showGameplay() {
-        titleCard.isHidden = true
-        helpButton.isHidden = true
-        helpPanel.isHidden = true
         gameOverCard.isHidden = true
         gameplayNodes.forEach { $0.isHidden = false }
     }

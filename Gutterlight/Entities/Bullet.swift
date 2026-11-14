@@ -16,9 +16,9 @@ final class Bullet: SKNode {
     private(set) var trail: SKEmitterNode?
 
     /// Player round.
-    init(weapon: Weapon, velocity: CGVector) {
+    init(weapon: Weapon, velocity: CGVector, damageBonus: Int = 0) {
         friendly = true
-        damage = weapon.damage
+        damage = weapon.damage + damageBonus
         pierces = weapon.pierces
         blastRadius = weapon.blastRadius
         knockback = weapon.knockback
