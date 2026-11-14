@@ -25,6 +25,19 @@ struct Settings: Codable {
     var difficulty = Difficulty()
     var godMode = false
     var extraLivesEnabled = true
+    /// Weapon you start every run with (infinite ammo). Must be unlocked.
+    var defaultWeapon: Weapon = .spitter
+
+    init() {}
+
+    // Tolerant decoding so settings saved by older builds still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        difficulty = try c.decodeIfPresent(Difficulty.self, forKey: .difficulty) ?? Difficulty()
+        godMode = try c.decodeIfPresent(Bool.self, forKey: .godMode) ?? false
+        extraLivesEnabled = try c.decodeIfPresent(Bool.self, forKey: .extraLivesEnabled) ?? true
+        defaultWeapon = try c.decodeIfPresent(Weapon.self, forKey: .defaultWeapon) ?? .spitter
+    }
 }
 
 struct Progress: Codable {
@@ -39,6 +52,11 @@ struct Progress: Codable {
 
     var spitterUnlocked: Bool { pointsEarned > 0 }
     var extraLives: Int { bossesDefeated.count }
+
+    func isUnlocked(_ weapon: Weapon) -> Bool {
+        guard let boss = weapon.unlockingBoss else { return true }
+        return bossesDefeated.contains(boss)
+    }
 }
 
 struct ScoreEntry: Codable {

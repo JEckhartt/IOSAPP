@@ -13,33 +13,39 @@ de neon flikkert en de Suits willen hun straten terug.
   - *Upgrade points*: elke overleefde wave levert 1 punt op. Elk punt geeft de SPITTER +1 damage (je kunt het terugdraaien met −). Ontgrendelt na je eerste overleefde wave.
   - *Extra lives*: elke baas die je voor het eerst verslaat geeft permanent +1 max HP. Zet je dit aan, dan begin je met meer levens; uit kan ook.
 - **DIFFICULTY**: slider van −100% tot +100% in stappen van 10%. Dit schaalt het aantal vijanden en hun HP (25%–200%) en hun snelheid, kogelsnelheid en vuurtempo (50%–150%).
+- **START WEAPON** (in UNLOCKS): kies je startwapen uit wat bazen hebben vrijgespeeld
 - **DEVELOPER**: god mode en direct naar elke baas springen. Dev-runs tellen niet mee voor highscores en unlocks.
 - **?**: uitleg over het spel
 
 - **Linkerduim**: bewegen (de stick verschijnt waar je drukt)
 - **Rechterduim**: richten + automatisch vuren (met lichte aim assist)
 - Trek je duim verder dan de stick, dan schuift de stick mee
+- **II** rechtsboven: pauze, met RESUME of terug naar het hoofdmenu
 - Kills achter elkaar bouwen een combo op tot **x8**. Word je geraakt, dan is je combo weg.
 - Om de 5 waves komt er een Brute. Die laat altijd een wapen vallen en vaak ook een stim pack (+1 HP).
 - Om de 3 waves ligt er na een clear een wapenkrat klaar.
 
 ### Bazen
 
-Elke 10e wave komt er een baas, met een levensbalk en drie fases (bij 66% en 33% HP wordt hij sneller en agressiever).
-Na wave 100 begint de rij opnieuw, elke ronde taaier.
+Elke 5e wave komt er een baas, met een levensbalk en drie fases (bij 66% en 33% HP wordt hij sneller en agressiever).
+Na wave 50 begint de rij opnieuw, elke ronde taaier.
+
+**Buit** (alleen de eerste keer dat je een baas verslaat, niet in dev-runs):
+- elke baas: permanent +1 max HP
+- baas 1–4: ontgrendelt respectievelijk SCATTER, BUZZSAW, RAILGUN en BOOMBOX als **startwapen** (∞ munitie), te kiezen in UNLOCKS
 
 | Wave | Baas               | Stijl                                          |
 |------|--------------------|------------------------------------------------|
-| 10   | THE MIDDLE MANAGER | achtervolgt, ringen + waaiers, roept Suits     |
-| 20   | KENNEL MASTER      | dashes, roept Hounds                           |
-| 30   | RIOT CAPTAIN       | salvo's van 3, roept Enforcers                 |
-| 40   | THE BULLDOZER      | groot, chargeert, dichte schokgolven           |
-| 50   | SPIN DOCTOR        | spiralen                                       |
-| 60   | THE AUDITOR        | teleporteert en barst uit                      |
-| 70   | BIG BROTHER        | volgt je met een kogelstroom                   |
-| 80   | THE LOBBYIST       | grote waaiers, koopt versterking in            |
-| 90   | THE BOARD          | 6–8-armige spiralen, streams                   |
-| 100  | THE CHAIRMAN       | alles tegelijk                                 |
+| 5    | THE MIDDLE MANAGER | achtervolgt, ringen + waaiers, roept Suits     |
+| 10   | KENNEL MASTER      | dashes, roept Hounds                           |
+| 15   | RIOT CAPTAIN       | salvo's van 3, roept Enforcers                 |
+| 20   | THE BULLDOZER      | groot, chargeert, dichte schokgolven           |
+| 25   | SPIN DOCTOR        | spiralen                                       |
+| 30   | THE AUDITOR        | teleporteert en barst uit                      |
+| 35   | BIG BROTHER        | volgt je met een kogelstroom                   |
+| 40   | THE LOBBYIST       | grote waaiers, koopt versterking in            |
+| 45   | THE BOARD          | 6–8-armige spiralen, streams                   |
+| 50   | THE CHAIRMAN       | alles tegelijk                                 |
 
 ### Wapens
 

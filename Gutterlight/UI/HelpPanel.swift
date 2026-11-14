@@ -133,7 +133,7 @@ final class HelpPanel: SKNode {
         let lines = [
             "CHAIN KILLS FOR UP TO x8 COMBO. GETTING HIT RESETS IT.",
             "+ HEALS 1 HP  ·  SAME WEAPON AGAIN STACKS AMMO  ·  EVERY 3RD WAVE LEAVES A CRATE",
-            "EVERY 10TH WAVE A NEW BOSS SHOWS UP. TEN OF THEM. GOOD LUCK.",
+            "EVERY 5TH WAVE A NEW BOSS SHOWS UP. TEN OF THEM. GOOD LUCK.",
         ]
         for (i, text) in lines.enumerated() {
             let color: SKColor = i == 0 ? Palette.acid : (i == 2 ? Palette.blood : SKColor.white.withAlphaComponent(0.75))

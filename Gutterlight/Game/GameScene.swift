@@ -2,7 +2,7 @@ import SpriteKit
 import UIKit
 
 final class GameScene: SKScene {
-    private enum State { case title, playing, dead }
+    private enum State { case title, playing, paused, dead }
 
     // MARK: Nodes
 
@@ -35,6 +35,9 @@ final class GameScene: SKScene {
     private var fireCooldown: TimeInterval = 0
     private var weapon: Weapon = .spitter
     private var ammo = 0
+    /// The run's start weapon: infinite ammo, what you fall back to when a pickup runs dry.
+    private var baseWeapon: Weapon = .spitter
+    private var infiniteAmmo: Bool { weapon == baseWeapon }
     private var hitStop: TimeInterval = 0
     private var shake: CGFloat = 0
     private var deadDelay: TimeInterval = 0
@@ -161,6 +164,8 @@ final class GameScene: SKScene {
 
     private func showMenu() {
         state = .title
+        world.isPaused = false
+        hud.hidePause()
         releaseAllSticks()
         clearWorld()
         player.isHidden = true
@@ -188,6 +193,7 @@ final class GameScene: SKScene {
         godMode = settings.godMode
         isDevRun = dev || godMode
         spitterBonus = progress.spitterUnlocked ? progress.spitterBonus : 0
+        baseWeapon = progress.isUnlocked(settings.defaultWeapon) ? settings.defaultWeapon : .spitter
         lastRun = (startWave, dev)
         let maxHP = Player.baseMaxHP + (settings.extraLivesEnabled ? progress.extraLives : 0)
         menu.hide()
@@ -220,7 +226,8 @@ final class GameScene: SKScene {
         hud.setWave(0)
         hud.setHP(player.hp, max: player.maxHP)
         hud.setDevTag(godMode ? "GOD MODE" : (isDevRun ? "DEV RUN" : nil))
-        equip(.spitter, announce: false)
+        weapon = baseWeapon
+        equip(baseWeapon, announce: false)
         Audio.shared.setMusicLevel(.playing)
         state = .playing
     }
@@ -306,8 +313,19 @@ final class GameScene: SKScene {
             case nil: break
             }
             return
+        case .paused:
+            guard let touch = touches.first else { return }
+            switch hud.pauseChoice(for: touch) {
+            case .resume?: resume()
+            case .menu?: showMenu()
+            case nil: break
+            }
+            return
         case .playing:
-            break
+            if touches.contains(where: { hud.pauseButtonHit($0) }) {
+                pause()
+                return
+            }
         }
 
         for touch in touches {
@@ -337,6 +355,23 @@ final class GameScene: SKScene {
         touchesEnded(touches, with: event)
     }
 
+    private func pause() {
+        guard state == .playing else { return }
+        state = .paused
+        releaseAllSticks()
+        world.isPaused = true
+        hud.showPause()
+        Audio.shared.setMusicLevel(.dead)
+        Audio.shared.play(.hit, volume: 0.5)
+    }
+
+    private func resume() {
+        state = .playing
+        world.isPaused = false
+        hud.hidePause()
+        Audio.shared.setMusicLevel(.playing)
+    }
+
     private func releaseAllSticks() {
         touchSticks.removeAll()
         moveStick.end()
@@ -353,7 +388,7 @@ final class GameScene: SKScene {
         updateShake(dt)
 
         switch state {
-        case .title:
+        case .title, .paused:
             return
         case .dead:
             if deadDelay > 0 {
@@ -448,11 +483,11 @@ final class GameScene: SKScene {
         Audio.shared.play(weapon.sfx, volume: weapon.sfxVolume)
         if weapon.shake >= 4 { Haptics.light() }
 
-        if weapon.ammo > 0 {
+        if !infiniteAmmo {
             ammo -= 1
             if ammo <= 0 {
                 FX.popup("DRY", at: player.position + CGVector(dx: 0, dy: 26), color: .white, in: world)
-                equip(.spitter, announce: false)
+                equip(baseWeapon, announce: false)
             } else {
                 hud.setWeapon(weapon, ammo: ammo)
             }
@@ -477,14 +512,14 @@ final class GameScene: SKScene {
     }
 
     private func equip(_ newWeapon: Weapon, announce: Bool) {
-        if newWeapon == weapon && newWeapon.ammo > 0 {
+        if newWeapon == weapon && !infiniteAmmo {
             ammo = min(newWeapon.ammo * 2, ammo + newWeapon.ammo)
         } else {
             ammo = newWeapon.ammo
         }
         weapon = newWeapon
         fireCooldown = min(fireCooldown, 0.1)
-        hud.setWeapon(newWeapon, ammo: ammo)
+        hud.setWeapon(newWeapon, ammo: infiniteAmmo ? nil : ammo)
         hud.flashWeapon()
         if announce {
             FX.popup(newWeapon.name, at: player.position + CGVector(dx: 0, dy: 30), color: newWeapon.color, in: world)
@@ -816,7 +851,7 @@ final class GameScene: SKScene {
 
         // Loot: first kill of each boss permanently adds one max HP.
         if !isDevRun {
-            let index = (wave / 10 - 1) % BossSpec.roster.count
+            let index = (wave / BossSpec.interval - 1) % BossSpec.roster.count
             var progress = Store.progress
             if !progress.bossesDefeated.contains(index) {
                 progress.bossesDefeated.insert(index)
@@ -827,6 +862,10 @@ final class GameScene: SKScene {
                     hud.setHP(player.hp, max: player.maxHP)
                 }
                 FX.popup("MAX HP +1 UNLOCKED", at: player.position + CGVector(dx: 0, dy: 40), color: Palette.magenta, in: world)
+                if index < Weapon.bossUnlocks.count {
+                    let w = Weapon.bossUnlocks[index]
+                    FX.popup("START WEAPON UNLOCKED: \(w.name)", at: player.position + CGVector(dx: 0, dy: 64), color: w.color, in: world)
+                }
             }
         }
 
@@ -836,7 +875,7 @@ final class GameScene: SKScene {
             FX.burst(at: bullet.position, color: b.spec.color, count: 2, speed: 60, in: world)
         }
 
-        let points = 5000 * (wave / 10)
+        let points = 2500 * (wave / BossSpec.interval)
         score += points
         hud.setScore(score)
         FX.popup("\(b.spec.name) DOWN  +\(points)", at: b.position + CGVector(dx: 0, dy: b.radius + 24),
@@ -885,7 +924,7 @@ final class GameScene: SKScene {
     }
 
     private func dropWeapon(at point: CGPoint) {
-        let options = Weapon.drops.filter { $0 != weapon }
+        let options = Weapon.drops.filter { $0 != weapon && $0 != baseWeapon }
         guard let pick = options.randomElement() else { return }
         let crate = Pickup(kind: .weapon(pick))
         crate.position = point

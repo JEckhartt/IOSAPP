@@ -1,7 +1,7 @@
 import SpriteKit
 
 /// Everything VEX can pull a trigger on.
-enum Weapon: CaseIterable {
+enum Weapon: String, CaseIterable, Codable {
     /// Default sidearm. Infinite ammo.
     case spitter
     /// Shotgun. Seven pellets, short range, huge knockback.
@@ -15,6 +15,12 @@ enum Weapon: CaseIterable {
 
     /// Weapons that can drop as pickups.
     static let drops: [Weapon] = [.scatter, .buzzsaw, .rail, .boombox]
+
+    /// Beating boss #1…#4 for the first time unlocks these as default weapons.
+    static let bossUnlocks: [Weapon] = [.scatter, .buzzsaw, .rail, .boombox]
+
+    /// Roster index of the boss that unlocks this weapon (nil for the SPITTER).
+    var unlockingBoss: Int? { Weapon.bossUnlocks.firstIndex(of: self) }
 
     var name: String {
         switch self {

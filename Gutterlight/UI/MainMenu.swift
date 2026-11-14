@@ -39,6 +39,7 @@ final class MainMenu: SKNode {
     private let livesValue = HUD.label("", size: 14, color: .white)
     private let livesToggle = MenuButton("ON", width: 100, height: 34, color: Palette.acid, fontSize: 16)
     private let bossIcons = SKNode()
+    private var weaponButtons: [(Weapon, MenuButton)] = []
 
     // Dev
     private let godToggle = MenuButton("GOD MODE: OFF", width: 280, height: 40, color: Palette.blood)
@@ -289,22 +290,22 @@ final class MainMenu: SKNode {
                  at: CGPoint(x: 0, y: 74), in: unlocksPage)
 
         // SPITTER damage
-        _ = text("SPITTER DAMAGE", size: 18, color: Palette.magenta, at: CGPoint(x: -320, y: 30), in: unlocksPage,
+        _ = text("SPITTER DAMAGE", size: 18, color: Palette.magenta, at: CGPoint(x: -320, y: 42), in: unlocksPage,
                  font: Fonts.display, align: .left)
         spitterValue.horizontalAlignmentMode = .left
-        spitterValue.position = CGPoint(x: -80, y: 30)
+        spitterValue.position = CGPoint(x: -80, y: 42)
         spitterValue.zPosition = 2
         unlocksPage.addChild(spitterValue)
         spitterMinus.action = { [weak self] in self?.changeSpitter(-1) }
         spitterPlus.action = { [weak self] in self?.changeSpitter(1) }
-        add(spitterMinus, to: .unlocks, at: CGPoint(x: 220, y: 30), in: unlocksPage)
-        add(spitterPlus, to: .unlocks, at: CGPoint(x: 280, y: 30), in: unlocksPage)
+        add(spitterMinus, to: .unlocks, at: CGPoint(x: 220, y: 42), in: unlocksPage)
+        add(spitterPlus, to: .unlocks, at: CGPoint(x: 280, y: 42), in: unlocksPage)
 
         // Extra lives
-        _ = text("EXTRA LIVES", size: 18, color: Palette.blood, at: CGPoint(x: -320, y: -24), in: unlocksPage,
+        _ = text("EXTRA LIVES", size: 18, color: Palette.blood, at: CGPoint(x: -320, y: 2), in: unlocksPage,
                  font: Fonts.display, align: .left)
         livesValue.horizontalAlignmentMode = .left
-        livesValue.position = CGPoint(x: -80, y: -24)
+        livesValue.position = CGPoint(x: -80, y: 2)
         livesValue.zPosition = 2
         unlocksPage.addChild(livesValue)
         livesToggle.action = { [weak self] in
@@ -313,12 +314,28 @@ final class MainMenu: SKNode {
             Store.settings = s
             self?.refreshUnlocks()
         }
-        add(livesToggle, to: .unlocks, at: CGPoint(x: 250, y: -24), in: unlocksPage)
+        add(livesToggle, to: .unlocks, at: CGPoint(x: 250, y: 2), in: unlocksPage)
+
+        // Default weapon (boss loot)
+        _ = text("START WEAPON", size: 18, color: Palette.amber, at: CGPoint(x: -320, y: -40), in: unlocksPage,
+                 font: Fonts.display, align: .left)
+        for (i, w) in Weapon.allCases.enumerated() {
+            let b = MenuButton(w.name, width: 84, height: 32, color: w.color, fontSize: 13)
+            b.action = { [weak self] in
+                guard Store.progress.isUnlocked(w) else { return }
+                var st = Store.settings
+                st.defaultWeapon = w
+                Store.settings = st
+                self?.refreshUnlocks()
+            }
+            add(b, to: .unlocks, at: CGPoint(x: -116 + CGFloat(i) * 90, y: -40), in: unlocksPage)
+            weaponButtons.append((w, b))
+        }
 
         bossIcons.zPosition = 2
         unlocksPage.addChild(bossIcons)
-        _ = text("EACH BOSS BEATEN = +1 MAX HP", size: 11, color: SKColor.white.withAlphaComponent(0.55),
-                 at: CGPoint(x: 0, y: -112), in: unlocksPage)
+        _ = text("EVERY BOSS: +1 MAX HP  ·  BOSSES 1–4 ALSO UNLOCK A START WEAPON (∞ AMMO)", size: 10,
+                 color: SKColor.white.withAlphaComponent(0.55), at: CGPoint(x: 0, y: -122), in: unlocksPage)
 
         backButton(for: .unlocks, in: unlocksPage)
     }
@@ -369,6 +386,15 @@ final class MainMenu: SKNode {
         livesToggle.setTitle(s.extraLivesEnabled ? "ON" : "OFF")
         livesToggle.setColor(s.extraLivesEnabled ? Palette.acid : SKColor.white.withAlphaComponent(0.6))
 
+        var chosen = s.defaultWeapon
+        if !p.isUnlocked(chosen) { chosen = .spitter }
+        for (w, b) in weaponButtons {
+            let unlocked = p.isUnlocked(w)
+            b.isEnabled = unlocked
+            b.setTitle(unlocked ? w.name : "BOSS \((w.unlockingBoss ?? 0) + 1)")
+            b.setColor(w == chosen ? w.color : SKColor.white.withAlphaComponent(0.45))
+        }
+
         bossIcons.removeAllChildren()
         for (i, spec) in BossSpec.roster.enumerated() {
             let beaten = p.bossesDefeated.contains(i)
@@ -378,7 +404,7 @@ final class MainMenu: SKNode {
             icon.fillColor = beaten ? spec.color.withAlphaComponent(0.2) : .clear
             icon.lineWidth = 2
             icon.glowWidth = beaten ? 2 : 0
-            icon.position = CGPoint(x: x, y: -72)
+            icon.position = CGPoint(x: x, y: -90)
             bossIcons.addChild(icon)
             let mark = HUD.label(beaten ? "\(i + 1)" : "?", size: 11, color: beaten ? .white : SKColor.white.withAlphaComponent(0.3),
                                  font: Fonts.display)
@@ -408,7 +434,7 @@ final class MainMenu: SKNode {
             let col = i % 5, row = i / 5
             let x = -260 + CGFloat(col) * 130
             let y: CGFloat = row == 0 ? 20 : -48
-            let wave = (i + 1) * 10
+            let wave = (i + 1) * BossSpec.interval
             add(MenuButton("WAVE \(wave)", width: 118, height: 34, color: spec.color == .white ? Palette.blood : spec.color, fontSize: 15) { [weak self] in
                 self?.onSkipToWave(wave)
             }, to: .dev, at: CGPoint(x: x, y: y), in: devPage)

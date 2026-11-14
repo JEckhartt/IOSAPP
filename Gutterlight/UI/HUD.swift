@@ -28,8 +28,15 @@ final class HUD: SKNode {
     private let menuButton = MenuButton("MENU", width: 170, height: 42, color: Palette.cyan, fontSize: 20)
 
     enum GameOverChoice { case retry, menu }
+    enum PauseChoice { case resume, menu }
 
-    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, weaponLabel, hpNode, devTag] }
+    private let pauseButton = SKNode()
+    private static let pauseRadius: CGFloat = 17
+    private let pauseCard = SKNode()
+    private let resumeButton = MenuButton("RESUME", width: 220, height: 44, color: Palette.magenta, fontSize: 20)
+    private let quitButton = MenuButton("MAIN MENU", width: 220, height: 44, color: Palette.cyan, fontSize: 20)
+
+    private var gameplayNodes: [SKNode] { [scoreLabel, comboLabel, waveLabel, weaponLabel, hpNode, devTag, pauseButton] }
 
     override init() {
         super.init()
@@ -53,6 +60,70 @@ final class HUD: SKNode {
 
         buildGameOverCard()
         buildBossBar()
+        buildPause()
+    }
+
+    private func buildPause() {
+        let ring = SKShapeNode(circleOfRadius: HUD.pauseRadius)
+        ring.strokeColor = SKColor.white.withAlphaComponent(0.7)
+        ring.fillColor = SKColor.black.withAlphaComponent(0.3)
+        ring.lineWidth = 2
+        ring.zPosition = 0
+        pauseButton.addChild(ring)
+        for x in [-4.5, 4.5] as [CGFloat] {
+            let bar = SKShapeNode(rectOf: CGSize(width: 4, height: 14), cornerRadius: 1)
+            bar.fillColor = .white
+            bar.strokeColor = .clear
+            bar.position = CGPoint(x: x, y: 0)
+            bar.zPosition = 1
+            pauseButton.addChild(bar)
+        }
+        pauseButton.zPosition = 5
+
+        let dim = SKSpriteNode(color: SKColor.black.withAlphaComponent(0.7), size: CGSize(width: 4000, height: 4000))
+        dim.zPosition = 0
+        pauseCard.addChild(dim)
+        let title = HUD.neonText("PAUSED", size: 56, color: Palette.magenta)
+        title.position = CGPoint(x: 0, y: 80)
+        title.zPosition = 1
+        pauseCard.addChild(title)
+        resumeButton.position = CGPoint(x: 0, y: 6)
+        resumeButton.zPosition = 1
+        pauseCard.addChild(resumeButton)
+        quitButton.position = CGPoint(x: 0, y: -52)
+        quitButton.zPosition = 1
+        pauseCard.addChild(quitButton)
+        let note = HUD.label("QUITTING ENDS THIS RUN. POINTS ALREADY EARNED ARE KEPT.", size: 11,
+                             color: SKColor.white.withAlphaComponent(0.5))
+        note.position = CGPoint(x: 0, y: -96)
+        note.zPosition = 1
+        pauseCard.addChild(note)
+        pauseCard.zPosition = 40
+        pauseCard.isHidden = true
+        addChild(pauseCard)
+    }
+
+    // MARK: Pause
+
+    func pauseButtonHit(_ touch: UITouch) -> Bool {
+        guard pauseButton.isVisibleInTree else { return false }
+        return touch.location(in: self).distance(to: pauseButton.position) < HUD.pauseRadius + 20
+    }
+
+    func showPause() {
+        pauseCard.isHidden = false
+        pauseCard.alpha = 0
+        pauseCard.run(.fadeIn(withDuration: 0.12))
+    }
+
+    func hidePause() {
+        pauseCard.isHidden = true
+    }
+
+    func pauseChoice(for touch: UITouch) -> PauseChoice? {
+        if resumeButton.hitTest(touch) { resumeButton.press(); return .resume }
+        if quitButton.hitTest(touch) { quitButton.press(); return .menu }
+        return nil
     }
 
     required init?(coder aDecoder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -143,14 +214,16 @@ final class HUD: SKNode {
 
         scoreLabel.position = CGPoint(x: left, y: top)
         comboLabel.position = CGPoint(x: left, y: top - 28)
-        waveLabel.position = CGPoint(x: right, y: top)
-        weaponLabel.position = CGPoint(x: right, y: top - 28)
+        pauseButton.position = CGPoint(x: right - HUD.pauseRadius, y: top - 4)
+        waveLabel.position = CGPoint(x: right - HUD.pauseRadius * 2 - 14, y: top)
+        weaponLabel.position = CGPoint(x: right - HUD.pauseRadius * 2 - 14, y: top - 28)
         hpNode.position = CGPoint(x: 0, y: top)
         devTag.position = CGPoint(x: 0, y: top - 20)
 
         bossBar.position = CGPoint(x: 0, y: top - 52)
         bossBar.setScale(max(0.45, min(1, (right - left - 360) / HUD.bossBarWidth)))
         let cardScale = min(1, size.width / 760, size.height / 380)
+        pauseCard.setScale(cardScale)
         gameOverCard.setScale(cardScale)
         bannerNode.setScale(cardScale)
     }
@@ -174,10 +247,11 @@ final class HUD: SKNode {
         waveLabel.text = wave > 0 ? "WAVE \(wave)" : ""
     }
 
-    func setWeapon(_ weapon: Weapon, ammo: Int) {
-        weaponLabel.text = weapon.ammo > 0 ? "\(weapon.name)  \(ammo)" : weapon.name
+    /// `ammo == nil` means infinite (the run's start weapon).
+    func setWeapon(_ weapon: Weapon, ammo: Int?) {
+        weaponLabel.text = ammo.map { "\(weapon.name)  \($0)" } ?? "\(weapon.name)  ∞"
         weaponLabel.fontColor = weapon.color
-        let low = weapon.ammo > 0 && ammo <= max(3, weapon.ammo / 6)
+        let low = ammo.map { $0 <= max(3, weapon.ammo / 6) } ?? false
         weaponLabel.alpha = low && Int(CACurrentMediaTime() * 8) % 2 == 0 ? 0.35 : 1
     }
 
@@ -219,6 +293,7 @@ final class HUD: SKNode {
     /// Hide everything gameplay-related (the main menu takes over the screen).
     func showMenuMode() {
         gameOverCard.isHidden = true
+        pauseCard.isHidden = true
         bannerNode.removeAllActions()
         bannerNode.alpha = 0
         hideBossBar()

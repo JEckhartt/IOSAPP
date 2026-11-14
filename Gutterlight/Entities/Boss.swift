@@ -43,10 +43,12 @@ struct BossSpec {
     /// Attack rotation for each of the three phases (>66%, >33%, rest).
     let phases: [[BossAttack]]
 
-    /// Boss for a given wave (10, 20 … 100). Past 100 the roster loops, tougher each lap.
+    static let interval = 5
+
+    /// Boss for a given wave (5, 10 … 50). Past that the roster loops, tougher each lap.
     static func forWave(_ wave: Int) -> (spec: BossSpec, lap: Int)? {
-        guard wave > 0, wave % 10 == 0 else { return nil }
-        let index = wave / 10 - 1
+        guard wave > 0, wave % interval == 0 else { return nil }
+        let index = wave / interval - 1
         return (roster[index % roster.count], index / roster.count)
     }
 
